@@ -9,14 +9,16 @@
 <meta name="apple-mobile-web-app-title" content="Собери монстра">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon.png?v=2">
 <title>Собери монстра</title>
 <style>
 :root {
   --coral:#ff715f;
   --cream:#fff3df;
   --night:#17283b;
+  --sat:env(safe-area-inset-top, 0px);
+  --sab:env(safe-area-inset-bottom, 0px);
 }
 * { box-sizing:border-box; }
 html,body {
@@ -74,6 +76,39 @@ canvas#field {
   display:grid;place-items:center;padding:12px;
   background:#09121edb;backdrop-filter:blur(12px);
 }
+#intro.screen {
+  display:block;padding:0;background:transparent;backdrop-filter:none;
+}
+#introArt {
+  position:absolute;inset:0;width:100%;height:100%;
+  pointer-events:none;display:block;
+}
+.intro-ui {
+  position:relative;z-index:2;
+  width:100%;height:100%;
+  display:flex;flex-direction:column;align-items:center;
+  padding:calc(var(--sat) + 22px) 22px calc(var(--sab) + 22px);
+  box-sizing:border-box;
+}
+.intro-ui h1 {
+  margin:0;text-align:center;
+  font-size:clamp(52px,15vw,80px);line-height:.86;
+  letter-spacing:-.07em;font-weight:900;color:#fff6e8;
+  text-shadow:0 4px 0 #c84c43,0 12px 32px #00066;
+  pointer-events:none;
+}
+.intro-stage {flex:1;width:100%;min-height:180px;pointer-events:none}
+.intro-rules {
+  margin:0 12px 16px;max-width:22em;text-align:center;
+  font-size:15px;line-height:1.45;font-weight:650;color:#e7eef5;
+  text-shadow:0 2px 14px #000a;
+  pointer-events:none;
+}
+#intro .primary {
+  width:min(100%,360px);padding:18px 28px;
+  font-size:22px;border-radius:20px;margin-top:0;
+  pointer-events:auto;
+}
 .hidden {display:none!important}
 .panel {
   width:min(560px,100%);max-height:100%;
@@ -105,7 +140,9 @@ h2 {font-size:clamp(28px,7vw,46px);line-height:1;margin:10px 0}
 .primary:focus-visible {outline:3px solid #348bd2;outline-offset:4px}
 .resultPanel {width:min(900px,100%);padding:14px}
 #creature {
-  display:block;width:100%;height:min(48vh,420px);min-height:210px;
+  display:block;width:100%;height:auto;
+  aspect-ratio:600/700;
+  max-height:min(52vh,520px);min-height:220px;
   border-radius:18px;background:#fff4e2;border:1px solid #fff;
 }
 .stamp {
@@ -119,7 +156,7 @@ h2 {font-size:clamp(28px,7vw,46px);line-height:1;margin:10px 0}
   .panel {padding:14px}
   .logo {width:48px;height:48px;font-size:27px}
   h1 {font-size:42px}
-  #creature {height:38vh;min-height:175px}
+  #creature {max-height:40vh;min-height:170px}
   .primary {padding:12px 20px}
 }
 </style>
@@ -140,17 +177,16 @@ h2 {font-size:clamp(28px,7vw,46px);line-height:1;margin:10px 0}
         <div class="value" id="timer">30</div>
       </div>
     </div>
-    <div class="hint" id="hint">Лови фигуры — создай своё чудо!</div>
+    <div class="hint" id="hint">Лови детали — собери своего монстра!</div>
   </div>
 
   <section class="screen" id="intro">
-    <div class="panel">
-      <div class="logo">🪄</div>
-      <div class="kicker">маленькая фабрика чудес</div>
-      <h1>Поймай<br>чудо</h1>
-      <p>У тебя 30 секунд. Лови разноцветные фигуры, глаза, рты, ладошки и ботинки.</p>
-      <p class="muted">В конце из пойманных тобой деталей соберётся настоящее странное существо. Ничего не добавляем из воздуха!</p>
-      <button class="primary" id="startBtn" type="button">Начать игру</button>
+    <canvas id="introArt"></canvas>
+    <div class="intro-ui">
+      <h1>Собери<br>монстра</h1>
+      <div class="intro-stage" id="introStage" aria-hidden="true"></div>
+      <p class="intro-rules">30 секунд. Лови детали — из них соберётся твой монстр.</p>
+      <button class="primary" id="startBtn" type="button">Играть</button>
     </div>
   </section>
 
@@ -158,12 +194,12 @@ h2 {font-size:clamp(28px,7vw,46px);line-height:1;margin:10px 0}
     <div class="panel resultPanel">
       <span class="stamp">Экземпляр создан</span>
       <span class="stamp" id="rarity">новый вид</span>
-      <h2 id="creatureName">Неизвестное чудо</h2>
-      <canvas id="creature" width="900" height="520"></canvas>
+      <h2 id="creatureName">Неизвестный монстр</h2>
+      <canvas id="creature" width="600" height="700"></canvas>
       <p id="creatureDesc"></p>
       <div id="legend"></div>
-      <p id="animationNote">Собираем твоё создание…</p>
-      <button class="primary" id="againBtn" type="button">Создать ещё одно чудо</button>
+      <p id="animationNote">Собираем твоего монстра…</p>
+      <button class="primary" id="againBtn" type="button">Собрать ещё монстра</button>
       <p class="muted">Каждая видимая деталь — одна из пойманных фигур.</p>
     </div>
   </section>
@@ -178,6 +214,9 @@ const field = $('field');
 const ctx = field.getContext('2d');
 const creature = $('creature');
 const cc = creature.getContext('2d');
+const introCanvas=$('introArt');
+const ic=introCanvas.getContext('2d');
+let introRaf=0,introW=0,introH=0,introDpr=1,introFloaters=[];
 
 const ROUND = 30, GOAL = 15;
 const names = [
@@ -194,6 +233,18 @@ let targets=[],caught=[],sparks=[];
 let running=false,elapsed=0,spawnClock=0,last=0,raf=0,resultRaf=0;
 let pointerActive=true;
 
+function cssPx(name) {
+  return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name))||0;
+}
+function playBounds() {
+  const top=Math.max(80, cssPx('--sat')+108);
+  const bottom=Math.min(h-24, h-(cssPx('--sab')+70));
+  return {
+    left:16, right:w-16, top, bottom,
+    cx:(16+w-16)/2, cy:(top+bottom)/2
+  };
+}
+
 function resize() {
   w=window.innerWidth; h=window.innerHeight;
   dpr=Math.min(window.devicePixelRatio||1,2);
@@ -202,6 +253,7 @@ function resize() {
   field.style.width=w+'px';
   field.style.height=h+'px';
   ctx.setTransform(dpr,0,0,dpr,0,0);
+  resizeIntro();
 }
 window.addEventListener('resize',resize);
 resize();
@@ -335,6 +387,7 @@ function shape(c,t,x,y,r) {
 
 function drawToken(c,o,x,y,r,angle=0) {
   c.save();c.translate(x,y);c.rotate(angle);
+  if(o.flip)c.scale(-1,1);
   c.shadowColor=o.color;c.shadowBlur=r*.35;
   c.fillStyle=o.color;c.strokeStyle='#fffdf7';c.lineWidth=Math.max(1.5,r*.09);
   shape(c,o.type,0,0,r);
@@ -359,15 +412,23 @@ function drawToken(c,o,x,y,r,angle=0) {
 }
 
 function spawn() {
-  let side=Math.floor(Math.random()*4),pad=35,x,y,vx,vy;
-  if(side===0){x=-pad;y=rand(120,h-60);vx=rand(190,290);vy=rand(-100,100)}
-  if(side===1){x=w+pad;y=rand(120,h-60);vx=-rand(190,290);vy=rand(-100,100)}
-  if(side===2){x=rand(30,w-30);y=-pad;vx=rand(-100,100);vy=rand(190,270)}
-  if(side===3){x=rand(30,w-30);y=h+pad;vx=rand(-100,100);vy=-rand(190,270)}
+  const b=playBounds();
+  const short=Math.min(w,h);
+  const speed=rand(.20,.34)*short;
+  const side=Math.floor(Math.random()*4);
+  let x,y;
+  if(side===0){x=b.left+8;y=rand(b.top+24,b.bottom-24)}
+  if(side===1){x=b.right-8;y=rand(b.top+24,b.bottom-24)}
+  if(side===2){x=rand(b.left+24,b.right-24);y=b.top+8}
+  if(side===3){x=rand(b.left+24,b.right-24);y=b.bottom-8}
+  const tx=rand(b.left+(b.right-b.left)*.28, b.right-(b.right-b.left)*.28);
+  const ty=rand(b.top+(b.bottom-b.top)*.28, b.bottom-(b.bottom-b.top)*.28);
+  const dx=tx-x,dy=ty-y,len=Math.hypot(dx,dy)||1;
+  const r=short<=520?rand(26,36):rand(22,30);
   targets.push({
-    x,y,vx,vy,r:rand(18,25),
+    x,y,vx:dx/len*speed,vy:dy/len*speed,r,
     type:Math.floor(Math.random()*names.length),
-    color:pick(colors),rot:rand(0,6.28),spin:rand(-2,2),life:8
+    color:pick(colors),rot:rand(0,6.28),spin:rand(-1.2,1.2),life:rand(12,16)
   });
 }
 
@@ -394,12 +455,16 @@ function background() {
 
 function update(dt) {
   elapsed+=dt;spawnClock+=dt;
-  const interval=Math.max(.3,.58-caught.length*.01);
-  while(spawnClock>interval){spawnClock-=interval;spawn()}
+  const interval=targets.length<6?.28:targets.length<8?.45:.75;
+  while(spawnClock>interval&&targets.length<9){spawnClock-=interval;spawn()}
+  if(targets.length>=9)spawnClock=Math.min(spawnClock,interval);
+  const b=playBounds();
   for(let i=targets.length-1;i>=0;i--) {
     let o=targets[i];
     o.x+=o.vx*dt;o.y+=o.vy*dt;o.rot+=o.spin*dt;o.life-=dt;
-    if(o.life<=0||o.x<-70||o.x>w+70||o.y<-70||o.y>h+70)
+    if(o.y<b.top+o.r&&o.vy<0){o.y=b.top+o.r;o.vy=Math.abs(o.vy)}
+    if(o.y>b.bottom-o.r&&o.vy>0){o.y=b.bottom-o.r;o.vy=-Math.abs(o.vy)}
+    if(o.life<=0||o.x<-80||o.x>w+80)
       targets.splice(i,1);
   }
   for(let i=sparks.length-1;i>=0;i--) {
@@ -432,7 +497,7 @@ function catchAt(x,y) {
   if(!running)return;
   for(let i=targets.length-1;i>=0;i--) {
     const o=targets[i];
-    if((x-o.x)**2+(y-o.y)**2<(o.r+15)**2) {
+    if((x-o.x)**2+(y-o.y)**2<(o.r*1.35+24)**2) {
       targets.splice(i,1);
       caught.push({type:o.type,color:o.color,rot:o.rot});
       burst(o.x,o.y,o.color);
@@ -452,26 +517,171 @@ field.addEventListener('pointerdown',e=>{
 },{passive:false});
 
 function layoutParts(parts) {
-  const slots=[
-    [450,150],[350,190],[550,190],[450,260],[310,290],
-    [590,290],[370,350],[530,350],[320,420],[580,420],
-    [450,420],[250,230],[650,230],[270,350],[630,350]
-  ];
-  return parts.map((p,i)=>{
-    let x,y,s;
-    if(p.type===15){x=390+(i%2)*120;y=155;s=1.1}
-    else if(p.type===16){x=450;y=150;s=1.2}
-    else if(p.type===17||p.type===22){x=450;y=235;s=1.1}
-    else if(p.type===18){x=i%2?590:310;y=300;s=1.2}
-    else if(p.type===19){x=i%2?530:370;y=425;s=1.1}
-    else if(p.type===20){x=450;y=350;s=1.1}
-    else if(p.type===21){x=450;y=200;s=1.1}
-    else {
-      const q=slots[i%slots.length];
-      x=q[0];y=q[1];s=1.25;
+  const W=creature.width,H=creature.height;
+  const laid=parts.map((p,i)=>({...p,i,angle:p.rot||0,flip:false,z:5,r:40,x:W/2,y:H/2}));
+  if(!laid.length)return laid;
+
+  const ordinary=laid.filter(p=>p.type<15);
+  const freq=Array(15).fill(0);
+  ordinary.forEach(p=>freq[p.type]++);
+  let body=null;
+  if(ordinary.length){
+    const best=freq.indexOf(Math.max(...freq));
+    body=ordinary.find(p=>p.type===best);
+  }
+
+  const n=laid.length;
+  const boost=n<=3?1.22:n<=6?1.1:1;
+  const bodyR=Math.min(W,H)*(n<=2?.26:.20)*boost;
+  const cx=W/2,cy=H*.50;
+  if(body){
+    body.x=cx;body.y=cy;body.r=bodyR;body.z=20;body.angle=0;body.role='body';
+  }
+
+  const restOrd=ordinary.filter(p=>p!==body);
+  const head=restOrd.shift()||null;
+  const headR=bodyR*.58;
+  const headX=cx, headY=cy-bodyR*.92;
+  if(head){
+    head.x=headX;head.y=headY;head.r=headR;head.z=30;head.angle=0;head.role='head';
+  }
+
+  const faceX=head?head.x:cx;
+  const faceY=head?head.y:cy-bodyR*.32;
+  const faceR=head?headR:bodyR*.72;
+
+  const earL=restOrd.shift()||null;
+  const earR=restOrd.shift()||null;
+  if(earL){
+    const a=-Math.PI*.72, d=faceR*.95;
+    earL.x=faceX+Math.cos(a)*d;earL.y=faceY+Math.sin(a)*d;
+    earL.r=bodyR*.38;earL.z=18;earL.angle=a+Math.PI/2;earL.role='ear';
+  }
+  if(earR){
+    const a=-Math.PI*.28, d=faceR*.95;
+    earR.x=faceX+Math.cos(a)*d;earR.y=faceY+Math.sin(a)*d;
+    earR.r=bodyR*.36;earR.z=18;earR.angle=a+Math.PI/2;earR.role='ear';
+  }
+
+  const belly=restOrd.shift()||null;
+  if(belly){
+    belly.x=cx;belly.y=cy+bodyR*.38;belly.r=bodyR*.42;
+    belly.z=24;belly.angle=0;belly.role='belly';
+  }
+
+  const tail=restOrd.shift()||null;
+  if(tail){
+    tail.x=cx+bodyR*.92;tail.y=cy+bodyR*.68;tail.r=bodyR*.40;
+    tail.z=8;tail.angle=.7;tail.role='tail';
+  }
+
+  const spikeAngles=[-.55,.55,-2.35,2.35,Math.PI,-1.15,1.15,-2.85,2.85,0,-1.85,1.85];
+  restOrd.forEach((p,i)=>{
+    const a=spikeAngles[i%spikeAngles.length];
+    const isPatch=i%3===2;
+    if(isPatch){
+      const d=bodyR*(.25+(i%4)*0.08);
+      p.x=cx+Math.cos(a)*.55*d;p.y=cy+bodyR*.15+Math.sin(a)*.4*d;
+      p.r=bodyR*.26;p.z=25;p.angle=a;p.role='patch';
+    } else {
+      const d=bodyR*.82;
+      p.x=cx+Math.cos(a)*d;p.y=cy+Math.sin(a)*d;
+      p.r=bodyR*.34;p.z=12;p.angle=a+Math.PI/2;p.role='spike';
     }
-    return {...p,x,y,s,angle:p.rot||0};
   });
+
+  const eyes=laid.filter(p=>p.type===15);
+  const glasses=laid.filter(p=>p.type===16);
+  const mouths=laid.filter(p=>p.type===17);
+  const hands=laid.filter(p=>p.type===18);
+  const boots=laid.filter(p=>p.type===19);
+  const bones=laid.filter(p=>p.type===20);
+  const staches=laid.filter(p=>p.type===21);
+  const tongues=laid.filter(p=>p.type===22);
+
+  const eyeR=faceR*(eyes.length===1?.32:.26);
+  const eyeY=faceY-faceR*.06;
+  if(eyes.length===1){
+    eyes[0].x=faceX;eyes[0].y=eyeY;eyes[0].r=eyeR;eyes[0].z=40;eyes[0].angle=0;
+  } else {
+    eyes.forEach((p,i)=>{
+      if(i<2){
+        p.x=faceX+(i===0?-1:1)*faceR*.38;p.y=eyeY;p.r=eyeR;
+      } else if(i===2){
+        p.x=faceX;p.y=faceY-faceR*.58;p.r=eyeR*.9;
+      } else {
+        const a=-Math.PI/2+(i-1.5)*.5;
+        p.x=faceX+Math.cos(a)*faceR*.7;p.y=faceY+Math.sin(a)*faceR*.7;p.r=eyeR*.8;
+      }
+      p.z=40;p.angle=0;
+    });
+  }
+
+  glasses.forEach((p,i)=>{
+    p.x=faceX+(i? (i%2?1:-1)*faceR*.2 : 0);
+    p.y=eyeY+(i? i*8 : 0);
+    p.r=eyes.length>=2?faceR*.62:faceR*.42;
+    p.z=42;p.angle=0;
+  });
+
+  staches.forEach((p,i)=>{
+    p.x=faceX;p.y=eyeY+faceR*.32+i*10;
+    p.r=faceR*.40;p.z=43;p.angle=0;
+  });
+
+  mouths.forEach((p,i)=>{
+    p.x=faceX;p.y=faceY+faceR*.46+i*16;
+    p.r=faceR*.34;p.z=36;p.angle=0;
+  });
+
+  tongues.forEach((p,i)=>{
+    const mx=mouths[0]?mouths[0].x:faceX;
+    const my=mouths[0]?mouths[0].y+faceR*.28:faceY+faceR*.62;
+    p.x=mx;p.y=my+i*12;p.r=faceR*.26;p.z=38;p.angle=0;
+  });
+
+  hands.forEach((p,i)=>{
+    const left=i%2===0;
+    const row=Math.floor(i/2);
+    p.x=cx+(left?-1:1)*(bodyR*1.18);
+    p.y=cy+bodyR*.08+row*bodyR*.5;
+    p.r=bodyR*.42;p.z=16;p.angle=left?-.45:.45;p.flip=left;p.role='hand';
+  });
+
+  boots.forEach((p,i)=>{
+    const left=i%2===0;
+    const row=Math.floor(i/2);
+    p.x=cx+(left?-1:1)*(bodyR*.58+row*bodyR*.2);
+    p.y=cy+bodyR*.96+row*bodyR*.28;
+    p.r=bodyR*.38;p.z=10;p.angle=0;p.flip=left;p.role='boot';
+  });
+
+  bones.forEach((p,i)=>{
+    if(hands[i]){
+      p.x=hands[i].x+(hands[i].flip?-1:1)*bodyR*.35;
+      p.y=hands[i].y-bodyR*.25;
+    } else {
+      p.x=cx+bodyR*1.05;p.y=cy+bodyR*.15+i*24;
+    }
+    p.r=bodyR*.32;p.z=34;p.angle=i%2?-.6:.8;
+  });
+
+  // Fit the assembled silhouette into the canvas with a margin.
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  laid.forEach(p=>{
+    minX=Math.min(minX,p.x-p.r);maxX=Math.max(maxX,p.x+p.r);
+    minY=Math.min(minY,p.y-p.r);maxY=Math.max(maxY,p.y+p.r);
+  });
+  const margin=36;
+  const bw=Math.max(40,maxX-minX),bh=Math.max(40,maxY-minY);
+  const scale=Math.min((W-2*margin)/bw,(H-2*margin)/bh,1.35);
+  const midX=(minX+maxX)/2,midY=(minY+maxY)/2;
+  laid.forEach(p=>{
+    p.x=W/2+(p.x-midX)*scale;
+    p.y=H/2+(p.y-midY)*scale;
+    p.r=p.r*scale;
+  });
+  return laid;
 }
 
 function makeName(parts) {
@@ -486,7 +696,7 @@ function makeName(parts) {
     'Облачник','Пончикоид','Крестокрыл','Лунатик',
     'Цветожор','Пятиугол','Стрелочник'];
   const ordinary=parts.filter(p=>p.type<15);
-  if(!ordinary.length)return 'Неопознанное чудо';
+  if(!ordinary.length)return 'Неопознанный монстр';
   const freq=Array(15).fill(0);
   ordinary.forEach(p=>freq[p.type]++);
   return stems[freq.indexOf(Math.max(...freq))];
@@ -514,37 +724,48 @@ function finish() {
 
   cancelAnimationFrame(resultRaf);
   const parts=layoutParts(caught);
-  const start=performance.now();
+  const t0=performance.now();
   const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const duration=reduced?0:950;
+  const body=parts.find(p=>p.role==='body')||parts[0];
 
   function draw(now) {
-    const progress=Math.min(1,(now-start)/duration||1);
-    cc.clearRect(0,0,900,520);
-    const bg=cc.createLinearGradient(0,0,900,520);
+    const W=creature.width,H=creature.height;
+    const progress=Math.min(1,(now-t0)/duration||1);
+    cc.clearRect(0,0,W,H);
+    const bg=cc.createLinearGradient(0,0,W,H);
     bg.addColorStop(0,'#fffaf0');bg.addColorStop(1,'#f0dfc7');
-    cc.fillStyle=bg;cc.fillRect(0,0,900,520);
+    cc.fillStyle=bg;cc.fillRect(0,0,W,H);
 
-    const cols=parts.length>9?4:3;
-    const rows=Math.ceil(parts.length/cols);
-    const cellW=650/cols,cellH=330/Math.max(rows,1);
-    parts.forEach((p,i)=>{
-      const col=i%cols,row=Math.floor(i/cols);
-      const tx=450+(col-(cols-1)/2)*cellW;
-      const ty=260+(row-(rows-1)/2)*cellH;
-      const delay=i*35;
-      const t=Math.max(0,Math.min(1,(now-start-delay)/(duration||1)));
+    const assembled=progress>=1;
+    const breath=(!reduced&&assembled)?1+Math.sin((now-t0)/650)*.03:1;
+    const wobble=(!reduced&&assembled)?Math.sin((now-t0)/900)*.045:0;
+    const bx=body?body.x:W/2, by=body?body.y:H/2;
+
+    const ordered=parts.slice().sort((a,b)=>a.z-b.z);
+    ordered.forEach((p,i)=>{
+      const delay=p.i*35;
+      const t=Math.max(0,Math.min(1,(now-t0-delay)/(duration||1)));
       const ease=1-Math.pow(1-t,3);
-      const x=450+(tx-450)*ease;
-      const y=510+(ty-510)*ease;
-      const r=Math.min(25*p.s,cellW*.34,cellH*.38);
-      drawToken(cc,p,x,y,r,p.angle);
+      const sx=W/2, sy=H+50;
+      let x=sx+(p.x-sx)*ease;
+      let y=sy+(p.y-sy)*ease;
+      let r=p.r, ang=p.angle||0;
+      if(assembled&&!reduced){
+        x=bx+(p.x-bx)*breath;
+        y=by+(p.y-by)*breath+Math.sin((now-t0)/500+i)*.028*p.r;
+        r=p.r*breath;
+        ang=ang+wobble*(i%2?1:-.7);
+      } else if(assembled&&reduced){
+        x=p.x;y=p.y;
+      }
+      drawToken(cc,p,x,y,r,ang);
     });
 
     $('animationNote').textContent=progress<1?
       'Детали собираются вместе…':'Готово! Оно живое?!';
 
-    if(progress<1)resultRaf=requestAnimationFrame(draw);
+    if(progress<1||!reduced)resultRaf=requestAnimationFrame(draw);
   }
   resultRaf=requestAnimationFrame(draw);
 }
@@ -552,17 +773,18 @@ function finish() {
 function start() {
   cancelAnimationFrame(raf);
   cancelAnimationFrame(resultRaf);
+  cancelAnimationFrame(introRaf);
   targets=[];sparks=[];caught=[];
   elapsed=0;spawnClock=0;running=true;
   $('score').textContent='0';
   $('timer').textContent=ROUND;
   $('meter').style.width='0%';
-  $('hint').textContent='Лови фигуры — создай своё чудо!';
-  $('animationNote').textContent='Собираем твоё создание…';
+  $('hint').textContent='Лови детали — собери своего монстра!';
+  $('animationNote').textContent='Собираем твоего монстра…';
   $('intro').classList.add('hidden');
   $('result').classList.add('hidden');
   $('hud').classList.remove('hidden');
-  for(let i=0;i<5;i++)spawn();
+  for(let i=0;i<7;i++)spawn();
   last=performance.now();
   render();
   raf=requestAnimationFrame(frame);
@@ -570,6 +792,82 @@ function start() {
 
 $('startBtn').addEventListener('click',start);
 $('againBtn').addEventListener('click',start);
+
+// ----- intro title screen -----
+function resizeIntro() {
+  if(!introCanvas)return;
+  const rect=introCanvas.getBoundingClientRect();
+  introW=Math.max(1,rect.width);introH=Math.max(1,rect.height);
+  introDpr=Math.min(window.devicePixelRatio||1,2);
+  introCanvas.width=Math.round(introW*introDpr);
+  introCanvas.height=Math.round(introH*introDpr);
+  ic.setTransform(introDpr,0,0,introDpr,0,0);
+}
+
+function initFloaters() {
+  introFloaters=[];
+  for(let i=0;i<7;i++){
+    introFloaters.push({
+      x:rand(.08,.92), y:rand(.12,.88),
+      vx:rand(-.025,.025), vy:rand(-.02,.02),
+      r:rand(16,26), type:Math.floor(Math.random()*15),
+      color:pick(colors), rot:rand(0,6.28), spin:rand(-.6,.6),
+      phase:rand(0,6.28)
+    });
+  }
+}
+
+function drawIntroMascot(c,x,y,s,t) {
+  const bob=Math.sin(t*2.1)*Math.min(14,s*.08);
+  const tilt=Math.sin(t*1.25)*.06;
+  c.save();c.translate(x,y+bob);c.rotate(tilt);
+  drawToken(c,{type:0,color:'#ffd16d'},-s*.72,-s*.62,s*.42, -.15);
+  drawToken(c,{type:0,color:'#70d4b4'}, s*.74,-s*.56,s*.38,  .18);
+  drawToken(c,{type:0,color:'#75c5f2'}, s*.04,-s*.95,s*.24, 0);
+  drawToken(c,{type:0,color:'#ff715f'}, 0, 0, s, 0);
+  drawToken(c,{type:15,color:'#fff6e8'},-s*.34,-s*.10,s*.32, 0);
+  drawToken(c,{type:15,color:'#fff6e8'}, s*.36,-s*.08,s*.32, 0);
+  drawToken(c,{type:17,color:'#70d4b4'}, 0, s*.32,s*.36, 0);
+  c.restore();
+}
+
+function drawIntro(t,reduced) {
+  ic.clearRect(0,0,introW,introH);
+  introFloaters.forEach(f=>{
+    if(!reduced){
+      f.x+=f.vx*0.016;f.y+=f.vy*0.016;f.rot+=f.spin*0.016;
+      if(f.x<-.1)f.x=1.1;if(f.x>1.1)f.x=-.1;
+      if(f.y<-.1)f.y=1.1;if(f.y>1.1)f.y=-.1;
+    }
+    const px=f.x*introW, py=f.y*introH;
+    ic.globalAlpha=.55;
+    drawToken(ic,f,px,py,f.r,f.rot);
+    ic.globalAlpha=1;
+  });
+  const stage=$('introStage').getBoundingClientRect();
+  const root=introCanvas.getBoundingClientRect();
+  const mx=stage.left-root.left+stage.width/2;
+  const my=stage.top-root.top+stage.height/2;
+  const s=Math.min(stage.width,stage.height)*.34;
+  drawIntroMascot(ic,mx,my,Math.max(70,s), reduced?0:t);
+}
+
+function startIntro() {
+  cancelAnimationFrame(introRaf);
+  initFloaters();
+  resizeIntro();
+  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const t0=performance.now();
+  function loop(now){
+    if($('intro').classList.contains('hidden'))return;
+    drawIntro(reduced?0:(now-t0)/1000,reduced);
+    introRaf=requestAnimationFrame(loop);
+  }
+  drawIntro(0,reduced);
+  introRaf=requestAnimationFrame(loop);
+}
+
+startIntro();
 
 })();
 </script>
