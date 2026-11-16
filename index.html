@@ -532,8 +532,12 @@ function layoutParts(parts) {
 
   const n=laid.length;
   const boost=n<=3?1.22:n<=6?1.1:1;
-  const bodyR=Math.min(W,H)*(n<=2?.26:.20)*boost;
   const cx=W/2,cy=H*.50;
+  // No ordinary body: use a compact virtual torso so specials cluster
+  // into one creature instead of being stretched to opposite edges.
+  const bodyR=body
+    ? Math.min(W,H)*(n<=2?.26:.20)*boost
+    : Math.min(W,H)*0.13*boost;
   if(body){
     body.x=cx;body.y=cy;body.r=bodyR;body.z=20;body.angle=0;body.role='body';
   }
@@ -643,7 +647,8 @@ function layoutParts(parts) {
   hands.forEach((p,i)=>{
     const left=i%2===0;
     const row=Math.floor(i/2);
-    p.x=cx+(left?-1:1)*(bodyR*1.18);
+    const reach=n<=3?bodyR*.75:bodyR*1.18;
+    p.x=cx+(left?-1:1)*reach;
     p.y=cy+bodyR*.08+row*bodyR*.5;
     p.r=bodyR*.42;p.z=16;p.angle=left?-.45:.45;p.flip=left;p.role='hand';
   });

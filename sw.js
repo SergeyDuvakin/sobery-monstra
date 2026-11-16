@@ -1,5 +1,5 @@
 // Собери монстра — cache-first offline shell. Bump CACHE when assets change.
-const CACHE = 'sobery-monstra-v2';
+const CACHE = 'sobery-monstra-v3';
 const ASSETS = [
   './',
   './index.html',
