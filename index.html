@@ -816,7 +816,6 @@ function ribbonPath(c,spine){
   c.closePath();
 }
 function sampleCurve(pts, steps){
-  // pts: [{x,y,w}], polyline subsampled for smoother ribbon
   const out=[];
   for(let i=0;i<pts.length-1;i++){
     const a=pts[i],b=pts[i+1];
@@ -829,6 +828,26 @@ function sampleCurve(pts, steps){
   out.push(pts[pts.length-1]);
   return out;
 }
+function spineAt(spine, t){
+  if(!spine.length)return {x:0,y:0,w:1,rot:0};
+  if(spine.length===1)return {...spine[0],rot:0};
+  let total=0;
+  const seg=[];
+  for(let i=0;i<spine.length-1;i++){
+    const d=Math.hypot(spine[i+1].x-spine[i].x,spine[i+1].y-spine[i].y);
+    seg.push(d);total+=d;
+  }
+  let d=Math.max(0,Math.min(1,t))*total, i=0;
+  while(i<seg.length-1 && d>seg[i]){d-=seg[i];i++;}
+  const a=spine[i],b=spine[Math.min(i+1,spine.length-1)];
+  const u=seg[i]?d/seg[i]:0;
+  return {
+    x:a.x+(b.x-a.x)*u,
+    y:a.y+(b.y-a.y)*u,
+    w:a.w+(b.w-a.w)*u,
+    rot:Math.atan2(b.y-a.y,b.x-a.x)
+  };
+}
 function paint(c,fill,stroke,lw){
   c.fillStyle=fill;
   c.strokeStyle=stroke;
@@ -839,54 +858,43 @@ function paint(c,fill,stroke,lw){
   c.stroke();
 }
 
-// ---------- silhouettes in design space ----------
-function trexDesign(){
-  // Facing right. Hip ~ (0,10). Big head, tiny arms, thick legs, long tapering tail.
-  const bones={
-    root:{x:0,y:0,rot:-0.06,amp:0,phase:0},
-    torso:{parent:'root',x:18,y:-42,rot:-0.32,amp:0.025,phase:0.2,pivot:true},
-    head:{parent:'torso',x:72,y:-58,rot:-0.12,amp:0.035,phase:1.1,pivot:true},
-    jaw:{parent:'head',x:22,y:28,rot:0.08,amp:0.04,phase:2.2,pivot:true},
-    tail:{parent:'root',x:-18,y:-8,rot:0,amp:0.04,phase:0.6,pivot:true},
-    arm:{parent:'torso',x:48,y:8,rot:0,amp:0.06,phase:1.7,pivot:true},
-    legFar:{parent:'root',x:-16,y:16,rot:0,amp:0.03,phase:2.8,pivot:true},
-    legNear:{parent:'root',x:24,y:18,rot:0,amp:0.03,phase:3.5,pivot:true}
-  };
-  const shadow={x:15,y:168,rx:130,ry:20};
-  const bbox={minX:-268,minY:-210,maxX:225,maxY:175};
-  return {bones,shadow,bbox,tilt:-0.04};
+function classifyPart(p){
+  const t=p.traits||{};
+  const k=p.kind, typ=p.type;
+  if(k==='worm' || typ===14 || (t.elongation>=1.55 && (t.spikiness||0)<.55)) return 'long';
+  if(k==='spiky'||k==='zigzag'||typ===2||typ===3||typ===7||typ===10|| (t.spikiness||0)>=.5) return 'spiky';
+  if(k==='blob'||typ===0||typ===4||typ===8||typ===9||typ===11|| (t.roundness||0)>=.6) return 'round';
+  if(k==='lumpy'||typ===1||typ===5||typ===6||typ===13) return 'lumpy';
+  return 'decor';
 }
-function orbDesign(){
-  const bones={
-    root:{x:0,y:0,rot:0,amp:0,phase:0},
-    body:{parent:'root',x:0,y:0,rot:0,amp:0.02,phase:0.4,pivot:true},
-    hornL:{parent:'body',x:-48,y:-118,rot:0,amp:0.05,phase:1.2,pivot:true},
-    hornR:{parent:'body',x:52,y:-116,rot:0,amp:0.05,phase:1.8,pivot:true},
-    armL:{parent:'body',x:-118,y:10,rot:0,amp:0.06,phase:2.1,pivot:true},
-    armR:{parent:'body',x:118,y:10,rot:0,amp:0.06,phase:2.7,pivot:true},
-    legL:{parent:'body',x:-40,y:110,rot:0,amp:0.03,phase:0.8,pivot:true},
-    legR:{parent:'body',x:42,y:110,rot:0,amp:0.03,phase:1.5,pivot:true}
-  };
-  const shadow={x:0,y:168,rx:95,ry:18};
-  const bbox={minX:-175,minY:-175,maxX:175,maxY:175};
-  return {bones,shadow,bbox,tilt:0.05};
+
+function traitsMorph(parts){
+  const list=parts||[];
+  const a=avgTraits(list);
+  const counts={spiky:0,long:0,round:0,lumpy:0,decor:0};
+  list.forEach(p=>counts[classifyPart(p)]++);
+  const n=Math.max(1,list.length);
+  const roundShare=counts.round/n;
+  const spikeShare=counts.spiky/n;
+  const longShare=counts.long/n;
+  const fat=0.76 + 0.50*Math.min(1,a.roundness) + 0.22*roundShare; // ~0.76–1.48
+  const spike=Math.min(1, a.spikiness*0.8 + spikeShare*0.55);
+  const elong=Math.max(0.72, Math.min(2.15, a.elongation*(0.88+0.4*longShare)));
+  const limb=0.82 + 0.45*(fat-0.76);
+  const size=list.reduce((s,p)=>s+((p.traits&&p.traits.size)||1),0)/n;
+  return {fat,spike,elong,limb,size,counts,n,roundness:a.roundness,spikiness:a.spikiness,elongation:a.elongation};
 }
-function krakenDesign(){
-  const bones={
-    root:{x:0,y:0,rot:0,amp:0,phase:0},
-    mantle:{parent:'root',x:0,y:-40,rot:0,amp:0.02,phase:0.5,pivot:true}
+
+function palFrom(color){
+  return {
+    main:color,
+    dark:darken(color,.22),
+    light:lighten(color,.28),
+    ink:'#2a3344',
+    teeth:'#fff6e8',
+    mouth:darken(color,.55),
+    tissue:lighten(color,.08)
   };
-  // 8 tentacle bones hanging from the mantle skirt
-  const tent=[];
-  const spreads=[-1.15,-0.82,-0.5,-0.22,0.22,0.5,0.82,1.15];
-  spreads.forEach((a,i)=>{
-    const id='tent'+i;
-    bones[id]={parent:'mantle',x:Math.sin(a)*70,y:70+Math.abs(Math.sin(a))*8,rot:0,amp:0.055,phase:0.7+i*0.7,pivot:true};
-    tent.push({id,a,i});
-  });
-  const shadow={x:0,y:310,rx:150,ry:22};
-  const bbox={minX:-210,minY:-180,maxX:210,maxY:320};
-  return {bones,shadow,bbox,tilt:0,tent};
 }
 
 function boneWorld(bones,id,t,reduced){
@@ -909,7 +917,6 @@ function boneWorld(bones,id,t,reduced){
   });
   return {x,y,rot};
 }
-
 function withBone(c,bones,id,t,reduced,fn){
   const w=boneWorld(bones,id,t,reduced);
   c.save();
@@ -919,366 +926,480 @@ function withBone(c,bones,id,t,reduced,fn){
   c.restore();
 }
 
-function drawTrexSil(c, pal, bones, t, reduced){
-  const ink=pal.ink, lw=7;
-  // TAIL — tapered S-curve counterweight, pointy tip
-  withBone(c,bones,'tail',t,reduced,c=>{
-    c.beginPath();
-    const spine=[
-      {x:8,y:6,w:26},{x:-40,y:18,w:24},{x:-90,y:32,w:20},
-      {x:-140,y:22,w:15},{x:-185,y:-2,w:10},{x:-225,y:-28,w:5},{x:-252,y:-48,w:1.5}
-    ];
-    ribbonPath(c,sampleCurve(spine,6));
-    paint(c,pal.dark,ink,lw);
-  });
-  // FAR LEG (behind, darker)
-  withBone(c,bones,'legFar',t,reduced,c=>{
-    c.beginPath();
-    capsulePath(c,0,0,-28,68,22,20);
-    paint(c,pal.dark,ink,lw);
-    c.beginPath();
-    capsulePath(c,-28,68,-4,132,18,14);
-    paint(c,pal.dark,ink,lw);
-    // foot
-    c.beginPath();
-    c.ellipse(16,142,28,12,0.05,0,Math.PI*2);
-    paint(c,pal.dark,ink,lw);
-    // toes
-    [[28,140,12],[36,146,11],[20,150,10]].forEach(p=>{
-      c.beginPath();c.ellipse(p[0],p[1],p[2],6,0.15,0,Math.PI*2);paint(c,pal.dark,ink,lw*.8);
-    });
-  });
-  // BODY / torso
-  withBone(c,bones,'torso',t,reduced,c=>{
-    c.beginPath();
-    // local origin at torso bone, which is already at body center-ish
-    // draw a forward-leaning pear in local space (bone is at 18,-42 from hip)
-    c.moveTo(-48,48);
-    c.bezierCurveTo(-62,20,-70,-10,-52,-48);
-    c.bezierCurveTo(-30,-88,20,-100,55,-78);
-    c.bezierCurveTo(88,-58,100,-18,78,22);
-    c.bezierCurveTo(60,52,20,70,-10,62);
-    c.bezierCurveTo(-28,58,-40,54,-48,48);
-    c.closePath();
-    paint(c,pal.main,ink,lw);
-    // lighter belly
-    c.beginPath();
-    c.ellipse(20,18,36,28,-0.4,0,Math.PI*2);
-    c.fillStyle=pal.light;c.fill();
-  });
-  // NEAR LEG
-  withBone(c,bones,'legNear',t,reduced,c=>{
-    c.beginPath();
-    capsulePath(c,0,0,-8,72,26,22);
-    paint(c,pal.main,ink,lw);
-    c.beginPath();
-    capsulePath(c,-8,72,28,138,20,15);
-    paint(c,pal.main,ink,lw);
-    c.beginPath();
-    c.ellipse(50,148,32,13,0.08,0,Math.PI*2);
-    paint(c,pal.main,ink,lw);
-    [[64,146,13],[74,152,12],[54,156,11]].forEach(p=>{
-      c.beginPath();c.ellipse(p[0],p[1],p[2],6.5,0.18,0,Math.PI*2);paint(c,pal.main,ink,lw*.8);
-    });
-  });
-  // TINY ARMS (two-finger)
-  withBone(c,bones,'arm',t,reduced,c=>{
-    c.beginPath();
-    capsulePath(c,0,0,18,16,7,6);
-    paint(c,pal.main,ink,lw*.85);
-    c.beginPath();
-    capsulePath(c,18,16,34,22,5.5,4.5);
-    paint(c,pal.main,ink,lw*.85);
-    c.beginPath();
-    capsulePath(c,34,22,48,20,3.2,2.2);
-    paint(c,pal.main,ink,lw*.8);
-    c.beginPath();
-    capsulePath(c,34,22,46,30,3.2,2.2);
-    paint(c,pal.main,ink,lw*.8);
-  });
-  // HEAD
-  withBone(c,bones,'head',t,reduced,c=>{
-    // origin near the neck/jaw hinge area
-    c.beginPath();
-    c.moveTo(-10,18);
-    c.bezierCurveTo(-28,-10,-20,-58,20,-72);
-    c.bezierCurveTo(50,-82,78,-70,108,-52);
-    c.bezierCurveTo(128,-42,138,-30,132,-16); // snout tip
-    c.bezierCurveTo(124,-10,80,-6,18,6); // upper lip
-    c.bezierCurveTo(0,10,-6,16,-10,18);
-    c.closePath();
-    paint(c,pal.main,ink,lw);
-    // brow ridge
-    c.beginPath();
-    c.ellipse(18,-40,22,10,-0.3,0,Math.PI*2);
-    c.fillStyle=pal.dark;c.globalAlpha=.25;c.fill();c.globalAlpha=1;
-  });
-  // MOUTH CAVITY + JAW (mandatory)
-  withBone(c,bones,'jaw',t,reduced,c=>{
-    // dark open mouth — hinge at jaw bone origin (under the snout)
-    c.beginPath();
-    c.moveTo(-8,-12);
-    c.lineTo(96,-18);
-    c.lineTo(88,22);
-    c.quadraticCurveTo(40,28,-8,4);
-    c.closePath();
-    c.fillStyle=pal.mouth;c.fill();
-    c.strokeStyle=ink;c.lineWidth=lw*.7;c.stroke();
-    // lower jaw
-    c.beginPath();
-    c.moveTo(-10,0);
-    c.bezierCurveTo(30,18,80,22,100,16);
-    c.bezierCurveTo(106,28,70,44,24,36);
-    c.bezierCurveTo(0,30,-12,16,-10,0);
-    c.closePath();
-    paint(c,pal.dark,ink,lw);
-  });
-  // Default teeth (mandatory)
-  withBone(c,bones,'head',t,reduced,c=>{
-    const up=[[30,4],[48,2],[66,0],[84,-2],[102,-6]];
-    up.forEach(([x,y],i)=>{
-      const s=10-(i>3?2:0);
-      c.beginPath();c.moveTo(x-s*.45,y);c.lineTo(x,y+s*1.15);c.lineTo(x+s*.45,y);c.closePath();
-      paint(c,pal.teeth,ink,3);
-    });
-  });
-  withBone(c,bones,'jaw',t,reduced,c=>{
-    [[28,8],[50,10],[72,10],[90,6]].forEach(([x,y],i)=>{
-      const s=8;
-      c.beginPath();c.moveTo(x-s*.4,y);c.lineTo(x,y-s);c.lineTo(x+s*.4,y);c.closePath();
-      paint(c,pal.teeth,ink,3);
-    });
-  });
+function trexTailSpine(m){
+  const s=0.70+0.48*(m.elong-0.72);
+  const w=0.46*m.limb; // thin connective tissue; parts carry the mass
+  return [
+    {x:10,y:8,w:16*w},{x:-42*s,y:20,w:14*w},{x:-95*s,y:30*Math.min(1.15,s),w:11*w},
+    {x:-148*s,y:16*s,w:8*w},{x:-195*s,y:-8*s,w:5.5*w},{x:-238*s,y:-36*s,w:3*w},{x:-268*s,y:-58*s,w:1.2}
+  ];
 }
 
-function drawOrbSil(c, pal, bones, t, reduced){
-  const ink=pal.ink, lw=7;
-  // FAR? no. Arms behind body? Arms slightly behind, legs in front of lower body.
-  withBone(c,bones,'armL',t,reduced,c=>{
-    c.beginPath();capsulePath(c,0,0,-48,22,8,6);paint(c,pal.main,ink,lw);
-    c.beginPath();c.arc(-52,26,8,0,Math.PI*2);paint(c,pal.main,ink,lw);
-  });
-  withBone(c,bones,'armR',t,reduced,c=>{
-    c.beginPath();capsulePath(c,0,0,48,22,8,6);paint(c,pal.main,ink,lw);
-    c.beginPath();c.arc(52,26,8,0,Math.PI*2);paint(c,pal.main,ink,lw);
-  });
-  withBone(c,bones,'hornL',t,reduced,c=>{
-    c.beginPath();
-    c.moveTo(-12,16);c.lineTo(0,-42);c.lineTo(14,16);c.closePath();
-    paint(c,pal.dark,ink,lw);
-  });
-  withBone(c,bones,'hornR',t,reduced,c=>{
-    c.beginPath();
-    c.moveTo(-14,16);c.lineTo(4,-46);c.lineTo(14,16);c.closePath();
-    paint(c,pal.dark,ink,lw);
-  });
-  withBone(c,bones,'body',t,reduced,c=>{
-    c.beginPath();c.arc(0,0,120,0,Math.PI*2);
-    paint(c,pal.main,ink,lw);
-    c.beginPath();c.ellipse(0,30,70,52,0,0,Math.PI*2);
-    c.fillStyle=pal.light;c.fill();
-  });
-  withBone(c,bones,'legL',t,reduced,c=>{
-    c.beginPath();capsulePath(c,0,0,-6,42,16,14);paint(c,pal.main,ink,lw);
-    c.beginPath();c.ellipse(-2,50,20,10,0,0,Math.PI*2);paint(c,pal.main,ink,lw);
-  });
-  withBone(c,bones,'legR',t,reduced,c=>{
-    c.beginPath();capsulePath(c,0,0,8,42,16,14);paint(c,pal.main,ink,lw);
-    c.beginPath();c.ellipse(10,50,20,10,0,0,Math.PI*2);paint(c,pal.main,ink,lw);
-  });
+function trexDesign(m){
+  const F=m.fat, E=m.elong;
+  const neck=62*(0.72+0.5*(E-0.72));
+  const headX=58+neck*0.55, headY=-50-(F-1)*8;
+  const bones={
+    root:{x:0,y:0,rot:-0.06,amp:0,phase:0},
+    torso:{parent:'root',x:16,y:-40-(F-1)*10,rot:-0.30,amp:0.025,phase:0.2,pivot:true},
+    head:{parent:'torso',x:headX,y:headY,rot:-0.10,amp:0.035,phase:1.1,pivot:true},
+    jaw:{parent:'head',x:24,y:30,rot:0.08,amp:0.04,phase:2.2,pivot:true},
+    tail:{parent:'root',x:-16,y:-6,rot:0,amp:0.04,phase:0.6,pivot:true},
+    arm:{parent:'torso',x:44,y:10,rot:0,amp:0.06,phase:1.7,pivot:true},
+    legFar:{parent:'root',x:-18,y:16,rot:0,amp:0.03,phase:2.8,pivot:true},
+    legNear:{parent:'root',x:26,y:18,rot:0,amp:0.03,phase:3.5,pivot:true}
+  };
+  const tail=trexTailSpine(m);
+  const tip=tail[tail.length-1];
+  const shadow={x:18,y:168+ (F-1)*12,rx:110+F*28,ry:18+F*4};
+  const bbox={
+    minX:Math.min(-90, tip.x-30)-20,
+    minY:-200-(F-1)*20,
+    maxX:230+ (F-1)*20,
+    maxY:175+(F-1)*16
+  };
+  return {bones,shadow,bbox,tilt:-0.04,tail,morph:m};
 }
 
-function tentacleSpine(i,a){
-  // hanging wavy tapered tentacle in the tentacle bone's local space
-  // bone is already at the skirt; local +y is downward in design space before bone rot
-  const len=185+Math.abs(a)*30+(i%3)*18;
-  const curl=(i%2?1:-1)*(0.7+Math.abs(a)*0.15);
-  const waves=1.15+ (i%3)*0.15;
-  const w0=18-Math.abs(a)*3;
-  const n=14, spine=[];
-  const dir=Math.PI/2+a*0.18; // mostly down, slightly out
+function orbDesign(m){
+  const F=m.fat;
+  const R=108*F;
+  const bones={
+    root:{x:0,y:0,rot:0,amp:0,phase:0},
+    body:{parent:'root',x:0,y:0,rot:0,amp:0.02,phase:0.4,pivot:true},
+    hornL:{parent:'body',x:-R*0.42,y:-R*0.92,rot:0,amp:0.05,phase:1.2,pivot:true},
+    hornR:{parent:'body',x:R*0.44,y:-R*0.90,rot:0,amp:0.05,phase:1.8,pivot:true},
+    armL:{parent:'body',x:-R*1.02,y:R*0.08,rot:0,amp:0.06,phase:2.1,pivot:true},
+    armR:{parent:'body',x:R*1.02,y:R*0.08,rot:0,amp:0.06,phase:2.7,pivot:true},
+    legL:{parent:'body',x:-R*0.36,y:R*0.92,rot:0,amp:0.03,phase:0.8,pivot:true},
+    legR:{parent:'body',x:R*0.38,y:R*0.92,rot:0,amp:0.03,phase:1.5,pivot:true}
+  };
+  const hornReach=70+m.spike*50;
+  const armReach=70+ (m.elong-0.72)*28;
+  const shadow={x:0,y:R+58,rx:R*0.85,ry:16+F*6};
+  const bbox={minX:-R-armReach-20,minY:-R-hornReach-10,maxX:R+armReach+20,maxY:R+70};
+  return {bones,shadow,bbox,tilt:0.05,bodyR:R,morph:m};
+}
+
+function octoSpine(i, spread, m){
+  // Controllable cartoon-octopus arm: go out and down, hook at the tip, never shoot upward.
+  const side=spread<0?-1:1;
+  const abs=Math.abs(spread);
+  const E=m.elong, F=m.fat;
+  const reach=(125+abs*80+(i%2)*20)*(0.84+0.36*(E-0.72));
+  const drop=(55+(2.15-abs)*90+((i>>1)%2)*14)*(0.88+0.2*(E-0.72));
+  const thick0=(22+F*10)*0.85;
+  const p1x=side*reach*0.30, p1y=drop*0.18+10;
+  const p2x=side*reach*1.02, p2y=drop*(abs>1.15?0.55:0.72);
+  // outer arms hook downward; inner arms flare out then slightly in
+  const p3x=side*reach*(abs>1.15?0.72:1.08);
+  const p3y=drop*(abs>1.15?1.08:1.18);
+  const n=18, spine=[];
   for(let k=0;k<=n;k++){
-    const t=k/n;
-    const d=t*len;
-    const side=Math.sin(t*waves*Math.PI+i)*curl*28*t;
-    const ang=dir;
-    spine.push({
-      x:Math.cos(ang)*d+Math.cos(ang-Math.PI/2)*side,
-      y:Math.sin(ang)*d+Math.sin(ang-Math.PI/2)*side,
-      w:w0*(1-t*.92)
-    });
+    const t=k/n,u=1-t;
+    let x=3*u*u*t*p1x + 3*u*t*t*p2x + t*t*t*p3x;
+    let y=3*u*u*t*p1y + 3*u*t*t*p2y + t*t*t*p3y;
+    const dx=p3x, dy=Math.max(20,p3y), len=Math.hypot(dx,dy)||1;
+    const wave=Math.sin(t*Math.PI*2.05+i*0.8)*16*t;
+    x+=(-dy/len)*wave; y+=(dx/len)*wave*0.45;
+    if(y<-4)y=-4;
+    spine.push({x,y,w:thick0*(1-t*0.78)});
   }
   return spine;
 }
 
-function drawKrakenSil(c, pal, bones, t, reduced, tent){
-  const ink=pal.ink, lw=7;
-  // tentacles first (behind / around mantle)
+function krakenDesign(m){
+  const F=m.fat;
+  const R=80*F;
+  const bones={
+    root:{x:0,y:0,rot:0,amp:0,phase:0},
+    mantle:{parent:'root',x:0,y:-24,rot:0,amp:0.02,phase:0.5,pivot:true}
+  };
+  const attaches=[
+    {a:-1.95,x:-R*0.92,y:R*0.02},
+    {a:-1.40,x:-R*1.08,y:R*0.38},
+    {a:-0.85,x:-R*0.78,y:R*0.78},
+    {a:-0.32,x:-R*0.28,y:R*0.98},
+    {a: 0.32,x: R*0.28,y:R*0.98},
+    {a: 0.85,x: R*0.78,y:R*0.78},
+    {a: 1.40,x: R*1.08,y:R*0.38},
+    {a: 1.95,x: R*0.92,y:R*0.02}
+  ];
+  const tent=[];
+  attaches.forEach((at,i)=>{
+    const id='tent'+i;
+    bones[id]={parent:'mantle',x:at.x,y:at.y,rot:0,amp:0.045,phase:0.6+i*0.7,pivot:true};
+    tent.push({id,a:at.a,i,spine:octoSpine(i,at.a,m)});
+  });
+  let minX=-R,maxX=R,minY=-R*1.25,maxY=R;
   tent.forEach(te=>{
-    withBone(c,bones,te.id,t,reduced,c=>{
-      c.beginPath();
-      ribbonPath(c,sampleCurve(tentacleSpine(te.i,te.a),5));
-      paint(c, te.i%2?pal.dark:pal.main, ink, lw);
+    const bx=bones[te.id].x, by=bones[te.id].y;
+    te.spine.forEach(p=>{
+      minX=Math.min(minX,bx+p.x-24);
+      maxX=Math.max(maxX,bx+p.x+24);
+      minY=Math.min(minY,by+p.y-24);
+      maxY=Math.max(maxY,by+p.y+24);
     });
   });
-  // MANTLE / dome
-  withBone(c,bones,'mantle',t,reduced,c=>{
+  const shadow={x:0,y:maxY+4,rx:Math.max(150,(maxX-minX)*0.30),ry:20};
+  const bbox={minX:minX-8,minY:minY-16,maxX:maxX+8,maxY:maxY+12};
+  return {bones,shadow,bbox,tilt:0.02,tent,headR:R,morph:m};
+}
+
+function drawBodyPart(c,o,r){
+  c.save();
+  c.shadowBlur=0;
+  c.fillStyle=o.color||'#ff715f';
+  c.strokeStyle='#2a3344';
+  c.lineWidth=Math.max(2.6,r*0.075);
+  c.lineJoin='round';
+  c.lineCap='round';
+  if(o.kind && o.pts){
+    krakPath(c,o,r);
+    c.fill();c.stroke();
+  } else {
+    shape(c,o.type,0,0,r);
+    c.fill(o.type===9?'evenodd':'nonzero');c.stroke();
+  }
+  c.restore();
+}
+
+function drawTrexTissue(c, pal, bones, t, reduced, design){
+  const m=design.morph, ink=pal.ink, lw=5.5;
+  const F=m.fat, th=m.limb;
+  const fill=pal.tissue;
+  c.save();
+  c.globalAlpha=0.62;
+  // tail
+  withBone(c,bones,'tail',t,reduced,c=>{
     c.beginPath();
-    // bell-shaped dome, slightly flattened bottom
-    c.moveTo(-118,55);
-    c.bezierCurveTo(-125,20,-118,-40,-80,-85);
-    c.bezierCurveTo(-40,-125,40,-125,80,-85);
-    c.bezierCurveTo(118,-40,125,20,118,55);
-    c.bezierCurveTo(80,80, -80,80, -118,55);
+    ribbonPath(c,sampleCurve(design.tail,6));
+    paint(c,pal.dark,ink,lw);
+  });
+  const legW=14*th;
+  withBone(c,bones,'legFar',t,reduced,c=>{
+    c.beginPath();capsulePath(c,0,0,-24,62,legW+4,legW+2);paint(c,pal.dark,ink,lw);
+    c.beginPath();capsulePath(c,-24,62,-2,128,legW,10*th);paint(c,pal.dark,ink,lw);
+    c.beginPath();c.ellipse(14,140,22*th,10,0.05,0,Math.PI*2);paint(c,pal.dark,ink,lw);
+  });
+  withBone(c,bones,'torso',t,reduced,c=>{
+    c.beginPath();
+    const sx=48*F, sy=56*F;
+    c.ellipse(8,16,sx,sy,-0.32,0,Math.PI*2);
+    paint(c,fill,ink,lw);
+  });
+  withBone(c,bones,'legNear',t,reduced,c=>{
+    c.beginPath();capsulePath(c,0,0,-10,66,legW+6,legW+3);paint(c,fill,ink,lw);
+    c.beginPath();capsulePath(c,-10,66,12,132,legW+2,11*th);paint(c,fill,ink,lw);
+    c.beginPath();c.ellipse(30,144,26*th,11,0.08,0,Math.PI*2);paint(c,fill,ink,lw);
+    [[42,142,10],[50,148,9],[34,152,8]].forEach(p=>{
+      c.beginPath();c.ellipse(p[0],p[1],p[2]*th,5,0.15,0,Math.PI*2);paint(c,fill,ink,lw*.8);
+    });
+  });
+  // tiny arms — connective only, stay tiny
+  withBone(c,bones,'arm',t,reduced,c=>{
+    c.beginPath();capsulePath(c,0,0,28,16,7,5);paint(c,fill,ink,lw);
+    c.beginPath();capsulePath(c,28,16,22,28,5,3.5);paint(c,fill,ink,lw);
+    c.beginPath();capsulePath(c,28,16,36,26,5,3.5);paint(c,fill,ink,lw);
+  });
+  withBone(c,bones,'head',t,reduced,c=>{
+    c.beginPath();
+    // cranium + snout profile, thinner than v4
+    c.moveTo(-36,-18);
+    c.bezierCurveTo(-40,-70,10,-88,48,-60);
+    c.bezierCurveTo(78,-48,96,-28,108,-8);
+    c.bezierCurveTo(118,6,112,18,98,22);
+    c.lineTo(36,16);
+    c.bezierCurveTo(8,28,-28,20,-36,-18);
     c.closePath();
-    paint(c,pal.main,ink,lw);
-    // lighter highlight on top
+    paint(c,fill,ink,lw);
+  });
+  c.restore();
+}
+
+function drawTrexJaw(c, pal, bones, t, reduced, design){
+  // Mandatory jaw + teeth, always on top of tissue / under or over parts as called
+  const ink=pal.ink, lw=5.5, m=design.morph, F=m.fat;
+  withBone(c,bones,'jaw',t,reduced,c=>{
     c.beginPath();
-    c.ellipse(0,-20,70,48,0,0,Math.PI*2);
-    c.fillStyle=pal.light;c.globalAlpha=.35;c.fill();c.globalAlpha=1;
+    c.moveTo(-8,-8);
+    c.lineTo(86,-2);
+    c.bezierCurveTo(96,8,90,26,70,30);
+    c.bezierCurveTo(30,36,-4,24,-10,8);
+    c.closePath();
+    paint(c,pal.tissue,ink,lw);
+  });
+  withBone(c,bones,'head',t,reduced,c=>{
+    // mouth cavity
+    c.beginPath();
+    c.moveTo(28,8);
+    c.lineTo(100,6);
+    c.lineTo(92,28);
+    c.bezierCurveTo(60,38,32,28,28,8);
+    c.closePath();
+    c.fillStyle=pal.mouth;c.fill();
+    c.strokeStyle=ink;c.lineWidth=3;c.stroke();
+    // upper teeth
+    const teeth=pal.teeth;
+    for(let i=0;i<6;i++){
+      const x=40+i*11, top=9, h=10+(i%3===1?4:0);
+      c.beginPath();
+      c.moveTo(x,top);c.lineTo(x+5,top+h);c.lineTo(x+10,top);
+      c.closePath();
+      c.fillStyle=teeth;c.strokeStyle=ink;c.lineWidth=1.6;c.fill();c.stroke();
+    }
+    // lower teeth
+    withBone(c,bones,'jaw',t,reduced,()=>{});
+  });
+  withBone(c,bones,'jaw',t,reduced,c=>{
+    for(let i=0;i<5;i++){
+      const x=18+i*13, y=4, h=8+(i%2?3:0);
+      c.beginPath();
+      c.moveTo(x,y);c.lineTo(x+5,y-h);c.lineTo(x+10,y);
+      c.closePath();
+      c.fillStyle=pal.teeth;c.strokeStyle=ink;c.lineWidth=1.6;c.fill();c.stroke();
+    }
   });
 }
 
-function classifyPart(p){
-  const t=p.traits||{};
-  const k=p.kind, typ=p.type;
-  if(k==='worm' || typ===14 || (t.elongation>=1.55 && (t.spikiness||0)<.55)) return 'long';
-  if(k==='spiky'||k==='zigzag'||typ===2||typ===3||typ===7||typ===10|| (t.spikiness||0)>=.5) return 'spiky';
-  if(k==='blob'||typ===0||typ===4||typ===8||typ===9||typ===11|| (t.roundness||0)>=.6) return 'round';
-  return 'decor';
+function drawOrbTissue(c, pal, bones, t, reduced, design){
+  const m=design.morph, R=design.bodyR, ink=pal.ink, lw=5.5;
+  const fill=pal.tissue;
+  c.save();
+  c.globalAlpha=0.42;
+  withBone(c,bones,'body',t,reduced,c=>{
+    c.beginPath();c.arc(0,0,R*0.68,0,Math.PI*2);paint(c,fill,ink,lw);
+    // light belly hint
+    c.beginPath();c.ellipse(0,R*0.22,R*0.45,R*0.32,0,0,Math.PI*2);
+    c.fillStyle=pal.light;c.globalAlpha=0.28;c.fill();
+  });
+  c.globalAlpha=0.7;
+  // thin horn guides
+  [['hornL',-0.35],['hornR',0.35]].forEach(([id,rot])=>{
+    withBone(c,bones,id,t,reduced,c=>{
+      c.save();c.rotate(rot);
+      c.beginPath();
+      c.moveTo(-10,8);c.lineTo(0,-36-m.spike*18);c.lineTo(10,8);c.closePath();
+      paint(c,fill,ink,lw);
+      c.restore();
+    });
+  });
+  [['armL',-0.55],['armR',0.55]].forEach(([id,rot])=>{
+    withBone(c,bones,id,t,reduced,c=>{
+      c.save();c.rotate(rot);
+      const len=48+(m.elong-0.72)*18;
+      c.beginPath();capsulePath(c,0,0,len,0,6,4);paint(c,fill,ink,lw);
+      c.beginPath();c.arc(len,0,7,0,Math.PI*2);paint(c,fill,ink,lw);
+      c.restore();
+    });
+  });
+  [['legL',0.15],['legR',-0.15]].forEach(([id,rot])=>{
+    withBone(c,bones,id,t,reduced,c=>{
+      c.save();c.rotate(rot);
+      c.beginPath();capsulePath(c,0,0,6,36*m.limb,11,9);paint(c,fill,ink,lw);
+      c.beginPath();c.ellipse(8,42*m.limb,16,8,0.1,0,Math.PI*2);paint(c,fill,ink,lw);
+      c.restore();
+    });
+  });
+  c.restore();
 }
 
-function trexSlots(){
-  // local positions in the named bone's space
-  return [
-    {id:'tooth0',cls:'spiky',bone:'head',x:36,y:8,rot:0,sx:0.55,sy:1.1,r:11,z:34},
-    {id:'tooth1',cls:'spiky',bone:'head',x:70,y:4,rot:0.05,sx:0.55,sy:1.15,r:12,z:34},
-    {id:'tooth2',cls:'spiky',bone:'head',x:100,y:0,rot:0.1,sx:0.5,sy:1.1,r:10,z:34},
-    {id:'spine0',cls:'spiky',bone:'torso',x:-30,y:-60,rot:-1.1,sx:0.7,sy:1.2,r:16,z:22},
-    {id:'spine1',cls:'spiky',bone:'torso',x:-8,y:-78,rot:-1.0,sx:0.7,sy:1.2,r:15,z:22},
-    {id:'spine2',cls:'spiky',bone:'torso',x:20,y:-86,rot:-0.9,sx:0.65,sy:1.15,r:14,z:22},
-    {id:'claw0',cls:'spiky',bone:'legNear',x:68,y:148,rot:0.4,sx:0.7,sy:1.0,r:10,z:24},
-    {id:'cheek',cls:'round',bone:'head',x:30,y:-8,rot:0,sx:1,sy:0.85,r:16,z:33},
-    {id:'belly',cls:'round',bone:'torso',x:22,y:16,rot:-0.3,sx:1.2,sy:0.9,r:22,z:21},
-    {id:'knee',cls:'round',bone:'legNear',x:-6,y:70,rot:0,sx:1,sy:0.9,r:14,z:23},
-    {id:'hip',cls:'round',bone:'root',x:8,y:8,rot:0,sx:1,sy:0.85,r:14,z:21},
-    {id:'tail0',cls:'long',bone:'tail',x:-70,y:24,rot:2.9,sx:1.5,sy:0.45,r:16,z:9},
-    {id:'tail1',cls:'long',bone:'tail',x:-140,y:18,rot:3.3,sx:1.4,sy:0.4,r:14,z:9},
-    {id:'tail2',cls:'long',bone:'tail',x:-200,y:-12,rot:3.6,sx:1.3,sy:0.38,r:12,z:9},
-    {id:'thigh',cls:'long',bone:'legNear',x:-4,y:36,rot:1.4,sx:1.3,sy:0.5,r:16,z:23},
-    {id:'spot0',cls:'decor',bone:'torso',x:50,y:-20,rot:0.3,sx:1,sy:1,r:12,z:21},
-    {id:'spot1',cls:'decor',bone:'torso',x:-10,y:30,rot:0,sx:1,sy:1,r:11,z:21},
-    {id:'spot2',cls:'decor',bone:'head',x:8,y:-36,rot:0,sx:1,sy:1,r:10,z:33},
-    {id:'spot3',cls:'decor',bone:'legFar',x:-20,y:40,rot:0,sx:1,sy:1,r:11,z:9}
-  ];
-}
-function orbSlots(){
-  return [
-    {id:'hornA',cls:'spiky',bone:'hornL',x:0,y:-20,rot:0,sx:0.7,sy:1.2,r:14,z:26},
-    {id:'hornB',cls:'spiky',bone:'hornR',x:2,y:-22,rot:0,sx:0.7,sy:1.25,r:14,z:26},
-    {id:'hair',cls:'spiky',bone:'body',x:0,y:-118,rot:0,sx:0.8,sy:1.1,r:12,z:26},
-    {id:'cheekL',cls:'round',bone:'body',x:-62,y:28,rot:0,sx:1,sy:0.9,r:16,z:22},
-    {id:'cheekR',cls:'round',bone:'body',x:64,y:30,rot:0,sx:1,sy:0.9,r:16,z:22},
-    {id:'belly',cls:'round',bone:'body',x:0,y:48,rot:0,sx:1.2,sy:0.85,r:22,z:22},
-    {id:'kneeL',cls:'round',bone:'legL',x:-2,y:24,rot:0,sx:1,sy:0.9,r:11,z:14},
-    {id:'kneeR',cls:'round',bone:'legR',x:6,y:24,rot:0,sx:1,sy:0.9,r:11,z:14},
-    {id:'armOL',cls:'long',bone:'armL',x:-22,y:8,rot:2.6,sx:1.5,sy:0.4,r:12,z:13},
-    {id:'armOR',cls:'long',bone:'armR',x:22,y:8,rot:0.5,sx:1.5,sy:0.4,r:12,z:13},
-    {id:'spot0',cls:'decor',bone:'body',x:-30,y:-20,rot:0.2,sx:1,sy:1,r:12,z:22},
-    {id:'spot1',cls:'decor',bone:'body',x:40,y:-8,rot:-0.2,sx:1,sy:1,r:11,z:22},
-    {id:'spot2',cls:'decor',bone:'body',x:16,y:70,rot:0,sx:1,sy:1,r:10,z:22},
-    {id:'spot3',cls:'decor',bone:'body',x:-50,y:60,rot:0,sx:1,sy:1,r:10,z:22},
-    {id:'spot4',cls:'decor',bone:'body',x:55,y:50,rot:0,sx:1,sy:1,r:10,z:22}
-  ];
-}
-function krakenSlots(tent){
-  const slots=[
-    {id:'crown0',cls:'spiky',bone:'mantle',x:-40,y:-90,rot:-0.3,sx:0.7,sy:1.2,r:16,z:32},
-    {id:'crown1',cls:'spiky',bone:'mantle',x:0,y:-108,rot:0,sx:0.75,sy:1.25,r:17,z:32},
-    {id:'crown2',cls:'spiky',bone:'mantle',x:42,y:-90,rot:0.3,sx:0.7,sy:1.2,r:16,z:32},
-    {id:'cheekL',cls:'round',bone:'mantle',x:-60,y:10,rot:0,sx:1,sy:0.9,r:16,z:31},
-    {id:'cheekR',cls:'round',bone:'mantle',x:60,y:10,rot:0,sx:1,sy:0.9,r:16,z:31},
-    {id:'spot0',cls:'decor',bone:'mantle',x:-20,y:-30,rot:0,sx:1,sy:1,r:12,z:31},
-    {id:'spot1',cls:'decor',bone:'mantle',x:28,y:-20,rot:0,sx:1,sy:1,r:11,z:31}
-  ];
-  tent.forEach((te,i)=>{
-    slots.push({id:'tseg'+i+'a',cls:'long',bone:te.id,x:20,y:50,rot:Math.PI/2+te.a*0.18,sx:1.5,sy:0.4,r:14,z:12+i});
-    slots.push({id:'tseg'+i+'b',cls:'long',bone:te.id,x:40,y:120,rot:Math.PI/2+te.a*0.18,sx:1.3,sy:0.35,r:12,z:12+i});
+function drawKrakenTissue(c, pal, bones, t, reduced, design){
+  const ink=pal.ink, lw=5.5, m=design.morph, R=design.headR;
+  const fill=pal.tissue;
+  // tentacles first (behind head) — thin curling ribbons
+  design.tent.forEach(te=>{
+    withBone(c,bones,te.id,t,reduced,c=>{
+      c.globalAlpha=0.7;
+      c.beginPath();
+      ribbonPath(c,sampleCurve(te.spine,4));
+      paint(c, te.i%2?pal.dark:fill, ink, lw);
+      c.globalAlpha=1;
+    });
   });
-  // a couple of sucker-like rounds on inner tentacles
-  slots.push({id:'suck0',cls:'round',bone:'tent3',x:15,y:80,rot:0,sx:1,sy:1,r:9,z:18});
-  slots.push({id:'suck1',cls:'round',bone:'tent4',x:15,y:90,rot:0,sx:1,sy:1,r:9,z:18});
-  slots.push({id:'spot2',cls:'decor',bone:'mantle',x:0,y:30,rot:0,sx:1,sy:1,r:10,z:31});
+  // bulbous octopus head / mantle
+  withBone(c,bones,'mantle',t,reduced,c=>{
+    c.globalAlpha=0.58;
+    c.beginPath();
+    c.moveTo(-R*0.95,R*0.35);
+    c.bezierCurveTo(-R*1.15,R*0.05,-R*1.05,-R*0.45,-R*0.6,-R*0.85);
+    c.bezierCurveTo(-R*0.2,-R*1.15,R*0.2,-R*1.15,R*0.6,-R*0.85);
+    c.bezierCurveTo(R*1.05,-R*0.45,R*1.15,R*0.05,R*0.95,R*0.35);
+    c.bezierCurveTo(R*0.5,R*0.7,-R*0.5,R*0.7,-R*0.95,R*0.35);
+    c.closePath();
+    paint(c,fill,ink,lw);
+    c.beginPath();
+    c.ellipse(0,-R*0.15,R*0.5,R*0.38,0,0,Math.PI*2);
+    c.fillStyle=pal.light;c.globalAlpha=0.3;c.fill();
+    c.globalAlpha=1;
+  });
+}
+
+function slot(id,cls,bone,x,y,rot,sx,sy,r,z,pri){
+  return {id,cls,bone,x,y,rot,sx,sy,r,z,pri};
+}
+
+function trexSlots(design){
+  const m=design.morph, F=m.fat, E=m.elong;
+  const slots=[];
+  // priority: low number first. Big anatomical masses first.
+  slots.push(slot('head','round','head',6,-26,-0.15,1.28,1.1,58*F,40,1));
+  slots.push(slot('torso','round','torso',6,16,-0.3,1.25,1.15,78*F,30,2));
+  slots.push(slot('jaw','lumpy','jaw',40,12,0.1,1.55,0.72,36*F,38,3));
+  slots.push(slot('thighN','lumpy','legNear',-4,28,1.15,1.2,0.75,40*m.limb,28,4));
+  slots.push(slot('shinN','lumpy','legNear',2,96,1.35,1.15,0.65,32*m.limb,28,5));
+  slots.push(slot('footN','spiky','legNear',30,144,0.1,1.35,0.6,24,29,8));
+  slots.push(slot('thighF','lumpy','legFar',-10,28,1.3,1.15,0.7,36*m.limb,8,6));
+  slots.push(slot('shinF','lumpy','legFar',-14,96,1.4,1.1,0.6,28*m.limb,8,7));
+  // tail chain — count grows with elongation / long parts
+  const tailN=Math.max(2, Math.min(5, 2+Math.round((E-0.8)*2.2)+ (m.counts.long>=3?1:0)));
+  const spine=sampleCurve(design.tail,6);
+  for(let i=0;i<tailN;i++){
+    const t=(i+0.65)/(tailN+0.3);
+    const p=spineAt(spine,t);
+    slots.push(slot('tail'+i,'long','tail',p.x,p.y,p.rot,2.15-t*0.35,0.62,36-i*3,6,4+i));
+  }
+  // tiny arm overlay, stays small
+  slots.push(slot('arm','long','arm',16,8,0.5,1.4,0.4,14,35,12));
+  // back / nose / extra spikes — more when spiky
+  const spikes=Math.max(1, Math.min(7, Math.round(1+m.spike*5 + m.counts.spiky*0.35)));
+  for(let i=0;i<spikes;i++){
+    const along=0.15+i*(0.7/Math.max(1,spikes-1));
+    const p=spineAt(spine, along*0.45);
+    // along upper torso / back
+    slots.push(slot('spike'+i,'spiky','torso',-8+i*16,-36-F*8,-0.9-i*0.08,0.7,1.35,20+m.spike*8,36,10+i));
+  }
+  slots.push(slot('teeth','spiky','head',70,8,0.05,1.2,0.5,16,45,11));
+  slots.push(slot('cheek','round','head',-6,-8,0,1,0.85,22,41,13));
+  slots.push(slot('belly','round','torso',10,36,-0.2,1.15,0.9,28*F,31,14));
   return slots;
 }
 
-function assignDecals(scheme, parts, design){
-  const slots=scheme==='trex'?trexSlots():scheme==='orb'?orbSlots():krakenSlots(design.tent||[]);
-  const pool=parts.map((p,i)=>({...p,i,cls:classifyPart(p)}));
-  const by={spiky:[],long:[],round:[],decor:[]};
-  pool.forEach(p=>by[p.cls].push(p));
-  const used=new Set();
+function orbSlots(design){
+  const m=design.morph, R=design.bodyR, F=m.fat;
+  const slots=[];
+  slots.push(slot('body','round','body',0,4,0,1.0,1.0,R*0.98,20,1));
+  slots.push(slot('belly','round','body',0,R*0.28,0,1.1,0.85,R*0.40,22,5));
+  slots.push(slot('hornL','spiky','hornL',0,-22,-0.35,0.75,1.5,32+m.spike*16,40,2));
+  slots.push(slot('hornR','spiky','hornR',0,-22, 0.35,0.75,1.5,32+m.spike*16,40,3));
+  slots.push(slot('legL','lumpy','legL',4,20,0.1,0.95,1.2,30*m.limb,15,4));
+  slots.push(slot('legR','lumpy','legR',-4,20,-0.1,0.95,1.2,30*m.limb,15,5));
+  slots.push(slot('armL','long','armL',-8,8,-0.55,1.85,0.45,22+(m.elong-0.72)*10,18,6));
+  slots.push(slot('armR','long','armR', 8,8, 0.55,1.85,0.45,22+(m.elong-0.72)*10,18,7));
+  slots.push(slot('cheekL','round','body',-R*0.50,R*0.08,0,1,0.9,R*0.24,23,8));
+  slots.push(slot('cheekR','round','body', R*0.50,R*0.08,0,1,0.9,R*0.24,23,9));
+  // extra rim spikes when spiky
+  const extra=Math.round(m.spike*6);
+  for(let i=0;i<extra;i++){
+    const a=-Math.PI*0.85+i*(Math.PI*1.7/Math.max(1,extra-1||1));
+    // skip front-bottom a bit
+    slots.push(slot('rim'+i,'spiky','body',Math.cos(a)*R*0.9,Math.sin(a)*R*0.9,a+Math.PI/2,0.65,1.3,18+m.spike*8,25,10+i));
+  }
+  return slots;
+}
+
+function krakenSlots(design){
+  const m=design.morph, R=design.headR;
+  const slots=[];
+  slots.push(slot('head','round','mantle',0,-6,0,1.08,1.02,R*0.98,40,1));
+  slots.push(slot('crown','spiky','mantle',0,-R*0.88,0,0.8,1.35,30+m.spike*14,50,8));
+  slots.push(slot('cheekL','round','mantle',-R*0.55,R*0.10,0,1,0.9,R*0.32,42,9));
+  slots.push(slot('cheekR','round','mantle', R*0.55,R*0.10,0,1,0.9,R*0.32,42,10));
+  // extra head spikes
+  const extra=Math.round(m.spike*4);
+  for(let i=0;i<extra;i++){
+    const a=-Math.PI*0.9 + i*(Math.PI*0.6/Math.max(1,extra-1||1)) - 0.3;
+    // around top of head
+    const ang=-Math.PI/2 + (i-(extra-1)/2)*0.4;
+    slots.push(slot('hspike'+i,'spiky','mantle',Math.cos(ang)*R*0.8,Math.sin(ang)*R*0.8,ang+Math.PI/2,0.7,1.25,18+m.spike*6,48,12+i));
+  }
+  // tentacle segments — two per arm, long parts first mid then tip
+  design.tent.forEach((te,i)=>{
+    const mid=spineAt(te.spine,0.38);
+    const tip=spineAt(te.spine,0.78);
+    slots.push(slot('tmid'+i,'long',te.id,mid.x,mid.y,mid.rot,2.2,0.58,32,10+((i===0||i===7||i===1||i===6)?20:0), 2+i*0.01));
+    slots.push(slot('ttip'+i,'long',te.id,tip.x,tip.y,tip.rot,1.85,0.5,24,11+((i===0||i===7)?20:0), 20+i));
+  });
+  return slots;
+}
+
+function assignParts(scheme, parts, design){
+  const slots=scheme==='trex'?trexSlots(design):scheme==='orb'?orbSlots(design):krakenSlots(design);
+  const pool=(parts||[]).map((p,i)=>({...p,i,cls:classifyPart(p)}));
+  slots.sort((a,b)=>a.pri-b.pri);
   const placed=[];
-  const take=(cls)=>{
-    const arr=by[cls];
-    if(arr&&arr.length)return arr.shift();
-    // fallback chain
-    for(const k of ['decor','round','long','spiky']){
-      if(k!==cls && by[k]&&by[k].length)return by[k].shift();
+  const used=new Set();
+  const fallback={
+    round:['lumpy','decor','long','spiky'],
+    lumpy:['round','decor','spiky','long'],
+    long:['decor','lumpy','spiky','round'],
+    spiky:['decor','lumpy','long','round'],
+    decor:['round','lumpy','spiky','long']
+  };
+  function takeFor(cls){
+    const want={
+      round:{minRound:.55,roundness:.8},
+      lumpy:{roundness:.4,spikiness:.3},
+      long:{minElong:1.4,elongation:1.8},
+      spiky:{minSpike:.5,spikiness:.8},
+      decor:{}
+    }[cls]||{};
+    const prefer=pool.filter(p=>!used.has(p.i) && p.cls===cls);
+    if(prefer.length){
+      const p=takeBest(prefer,want);
+      // takeBest splices from prefer, also remove from pool via used
+      if(p){used.add(p.i);return p;}
+    }
+    const chain=fallback[cls]||['decor'];
+    for(const k of chain){
+      const cand=pool.filter(p=>!used.has(p.i) && p.cls===k);
+      if(cand.length){
+        const p=takeBest(cand,want);
+        if(p){used.add(p.i);return p;}
+      }
+    }
+    const rest=pool.filter(p=>!used.has(p.i));
+    if(rest.length){
+      const p=takeBest(rest,want);
+      if(p){used.add(p.i);return p;}
     }
     return null;
-  };
+  }
   slots.forEach(sl=>{
-    const p=take(sl.cls);
+    // don't fill low-priority leftover-ish slots until we have parts
+    const p=takeFor(sl.cls);
     if(!p)return;
-    used.add(p);
-    placed.push({part:p, slot:sl});
-  });
-  // leftovers: sprinkle as small inner spots on the main body bone
-  const leftover=[].concat(by.spiky,by.long,by.round,by.decor);
-  const home=scheme==='kraken'?'mantle':scheme==='orb'?'body':'torso';
-  leftover.forEach((p,i)=>{
-    const ang=-0.8+i*0.7, rad=30+(i%4)*16;
-    placed.push({part:p, slot:{
-      id:'extra'+i,cls:'decor',bone:home,
-      x:Math.cos(ang)*rad,y:Math.sin(ang)*rad+(scheme==='orb'?10:0),
-      rot:ang,sx:1,sy:1,r:10,z:21
-    }});
+    const sz=(p.traits&&p.traits.size)||1;
+    const slot2=Object.assign({},sl,{r:sl.r* (0.88+0.24*(sz-0.7))});
+    placed.push({part:p,slot:slot2});
   });
   return placed;
 }
 
-function eyeSlots(scheme){
-  if(scheme==='orb') return [{bone:'body',x:0,y:-8,r:58,look:1}];
+function eyeSlots(scheme, design){
+  const m=design.morph, F=m.fat;
+  if(scheme==='orb'){
+    const R=design.bodyR;
+    return [{bone:'body',x:0,y:-R*0.06,r:Math.max(48, R*0.48),look:1}];
+  }
   if(scheme==='trex') return [
-    {bone:'head',x:10,y:-42,r:16,look:1},
-    {bone:'head',x:38,y:-38,r:15,look:1}
+    {bone:'head',x:10,y:-42,r:17,look:1},
+    {bone:'head',x:40,y:-38,r:16,look:1}
   ];
+  const R=design.headR;
   return [
-    {bone:'mantle',x:-36,y:-8,r:22,look:1},
-    {bone:'mantle',x:36,y:-8,r:22,look:1}
+    {bone:'mantle',x:-R*0.38,y:-R*0.08,r:Math.max(18,R*0.28),look:1},
+    {bone:'mantle',x: R*0.38,y:-R*0.08,r:Math.max(18,R*0.28),look:1}
   ];
-}
-
-function palFrom(color){
-  return {
-    main:color,
-    dark:darken(color,.22),
-    light:lighten(color,.28),
-    ink:'#2a3344',
-    teeth:'#fff6e8',
-    mouth:darken(color,.55)
-  };
 }
 
 function fitOf(bbox,W,H){
-  const margin=36;
+  const margin=32;
   const bw=bbox.maxX-bbox.minX, bh=bbox.maxY-bbox.minY;
   const s=Math.min((W-2*margin)/bw,(H-2*margin-18)/bh);
   const cx=(bbox.minX+bbox.maxX)/2, cy=(bbox.minY+bbox.maxY)/2;
-  return {s, tx:W/2-cx*s, ty:H*0.48-cy*s};
+  return {s, tx:W/2-cx*s, ty:H*0.50-cy*s};
 }
-
 function applyFit(c,fit,tilt){
   c.translate(fit.tx,fit.ty);
   c.scale(fit.s,fit.s);
@@ -1288,12 +1409,12 @@ function applyFit(c,fit,tilt){
 function layoutParts(parts){
   const scheme=pickScheme(parts);
   const color=dominantColor(parts);
-  const design=scheme==='trex'?trexDesign():scheme==='orb'?orbDesign():krakenDesign();
+  const morph=traitsMorph(parts);
+  const design=scheme==='trex'?trexDesign(morph):scheme==='orb'?orbDesign(morph):krakenDesign(morph);
   const pal=palFrom(color);
-  const decals=assignDecals(scheme,parts,design);
-  const eyes=eyeSlots(scheme);
-  const body=null;
-  return {parts:parts.slice(), scheme, color, pal, design, decals, eyes, body};
+  const decals=assignParts(scheme,parts,design);
+  const eyes=eyeSlots(scheme,design);
+  return {parts:(parts||[]).slice(), scheme, color, pal, design, decals, eyes, body:null, morph};
 }
 
 function drawGoogly(c,x,y,r,t,reduced){
@@ -1311,58 +1432,70 @@ function drawGoogly(c,x,y,r,t,reduced){
   c.restore();
 }
 
+function drawPlacedPart(c, d, bones, t, reduced, progress, design){
+  const sl=d.slot, p=d.part;
+  const delay=Math.min(0.65,(p.i!=null?p.i:0)*0.032);
+  const local=Math.max(0,Math.min(1,(progress*950-delay*950)/950));
+  const ease=1-Math.pow(1-local,3);
+  if(ease<=0)return;
+  const assembled=progress>=1;
+  const bw=boneWorld(bones,sl.bone,assembled?t:0,reduced||progress<1);
+  const cs=Math.cos(bw.rot),sn=Math.sin(bw.rot);
+  const wx=bw.x+sl.x*cs-sl.y*sn;
+  const wy=bw.y+sl.x*sn+sl.y*cs;
+  const ang=bw.rot+sl.rot;
+  const y0=design.bbox.maxY+90;
+  const x=wx, y=y0+(wy-y0)*ease;
+  c.save();
+  c.translate(x,y);
+  c.rotate(ang);
+  c.scale(sl.sx||1,sl.sy||1);
+  c.globalAlpha=0.55+0.45*ease;
+  drawBodyPart(c,p,sl.r);
+  c.globalAlpha=1;
+  c.restore();
+}
+
 function drawCreature(c,W,H,layout,t,reduced,progress){
   const {pal,design,decals,eyes,scheme}=layout;
   const fit=fitOf(design.bbox,W,H);
   const assembled=progress>=1;
   const rise=1-Math.pow(1-Math.min(1,progress),3);
   c.save();
-  // rise from below during fly-in
   if(progress<1)c.translate(0,(1-rise)*(H*0.55));
   applyFit(c,fit,design.tilt);
   const bones=design.bones;
+  const tt=assembled?t:0;
+  const red=reduced||progress<1;
   // shadow
   const sh=design.shadow;
   c.save();
   c.fillStyle='rgba(30,22,40,'+(0.2*rise)+')';
   c.beginPath();c.ellipse(sh.x,sh.y,sh.rx,sh.ry,0,0,Math.PI*2);c.fill();
   c.restore();
-  if(scheme==='trex')drawTrexSil(c,pal,bones,assembled?t:0,reduced||progress<1);
-  else if(scheme==='orb')drawOrbSil(c,pal,bones,assembled?t:0,reduced||progress<1);
-  else drawKrakenSil(c,pal,bones,assembled?t:0,reduced||progress<1,design.tent);
 
-  // decals fly in
-  decals.forEach((d,i)=>{
-    const sl=d.slot, p=d.part;
-    const delay=Math.min(0.7,(p.i!=null?p.i:i)*0.035);
-    const local=Math.max(0,Math.min(1,(progress*950-delay*950)/950));
-    const ease=1-Math.pow(1-local,3);
-    if(ease<=0)return;
-    const bw=boneWorld(bones,sl.bone,assembled?t:0,reduced||progress<1);
-    // slot in bone space -> world design space
-    const cs=Math.cos(bw.rot),sn=Math.sin(bw.rot);
-    const wx=bw.x+sl.x*cs-sl.y*sn;
-    const wy=bw.y+sl.x*sn+sl.y*cs;
-    const ang=bw.rot+sl.rot;
-    // fly from below
-    const y0=design.bbox.maxY+80;
-    const x=wx, y=y0+(wy-y0)*ease;
-    c.save();
-    c.translate(x,y);
-    c.rotate(ang);
-    c.scale(sl.sx||1,sl.sy||1);
-    const fade=0.45+0.55*ease;
-    c.globalAlpha=fade;
-    drawToken(c,p,0,0,sl.r,0);
-    c.globalAlpha=1;
-    c.restore();
-  });
+  // connective tissue first (always, so 3-part stays readable)
+  if(scheme==='trex'){
+    drawTrexTissue(c,pal,bones,tt,red,design);
+    drawTrexJaw(c,pal,bones,tt,red,design);
+  } else if(scheme==='orb'){
+    drawOrbTissue(c,pal,bones,tt,red,design);
+  } else {
+    drawKrakenTissue(c,pal,bones,tt,red,design);
+  }
+
+  // body parts in z-order
+  const ordered=decals.slice().sort((a,b)=>(a.slot.z||0)-(b.slot.z||0));
+  ordered.forEach(d=>drawPlacedPart(c,d,bones,t,reduced,progress,design));
+
+  // re-draw mandatory features so they stay readable over parts
+  if(scheme==='trex') drawTrexJaw(c,pal,bones,tt,red,design);
 
   // eyes
-  const eyeT=reduced? (progress>=1?1:0) : Math.max(0,Math.min(1,(progress-0.72)/0.22));
+  const eyeT=reduced?(progress>=1?1:0):Math.max(0,Math.min(1,(progress-0.72)/0.22));
   if(eyeT>0){
     eyes.forEach((e,i)=>{
-      const bw=boneWorld(bones,e.bone,assembled?t:0,reduced||progress<1);
+      const bw=boneWorld(bones,e.bone,tt,red);
       const cs=Math.cos(bw.rot),sn=Math.sin(bw.rot);
       const ex=bw.x+e.x*cs-e.y*sn;
       const ey=bw.y+e.x*sn+e.y*cs;
@@ -1415,15 +1548,11 @@ function finish(){
 
 function randomCaught(n, seed){
   const r=mulberry(seed==null?((Math.random()*1e9)|0):seed);
-  const oldPick=Math.random;
-  // local helpers using r
-  const rnd=(a,b)=>a+r()*(b-a);
   const out=[];
   for(let i=0;i<n;i++){
     const isKrak=r()<0.48;
     let part;
     if(isKrak){
-      // reuse makeKrako but it uses Math.random; temporarily patch
       const hold=Math.random;
       Math.random=r;
       part=makeKrako();
@@ -1444,6 +1573,50 @@ function randomCaught(n, seed){
   return out;
 }
 
+function biasedCaught(n, seed, bias){
+  // bias: 'spiky' | 'round' | 'long' | 'mixed'
+  const r=mulberry(seed==null?1:seed);
+  const kinds={
+    spiky:['spiky','zigzag',3,2,7,10],
+    round:['blob',0,4,8,9,11],
+    long:['worm',14],
+    lumpy:['lumpy',1,5,6,13]
+  };
+  const bag=kinds[bias]||null;
+  const out=[];
+  for(let i=0;i<n;i++){
+    let part;
+    const hold=Math.random;Math.random=r;
+    if(!bag){
+      part=r()<0.5?makeKrako():null;
+      if(part){part.type=-1;part.traits.size=1;}
+    } else {
+      const pickOne=bag[(r()*bag.length)|0];
+      if(typeof pickOne==='string'){
+        // force kind by retrying makeKrako a few times
+        let tries=0;
+        do{part=makeKrako();tries++;}while(part.kind!==pickOne && tries<12);
+        part.type=-1;part.traits.size=1;
+      } else {
+        const g=GEO[pickOne];
+        part={type:pickOne,kind:null,pts:null,label:g.name,
+          traits:{roundness:g.roundness,spikiness:g.spikiness,elongation:g.elongation,size:1}};
+      }
+    }
+    Math.random=hold;
+    if(!part){
+      const type=(r()*GEO.length)|0,g=GEO[type];
+      part={type,kind:null,pts:null,label:g.name,
+        traits:{roundness:g.roundness,spikiness:g.spikiness,elongation:g.elongation,size:1}};
+    }
+    part.color=colors[(r()*colors.length)|0];
+    part.rot=r()*6.28;
+    part.i=i;
+    out.push(part);
+  }
+  return out;
+}
+
 window.__forceScheme=null;
 const _pickScheme=pickScheme;
 pickScheme=function(parts){
@@ -1453,6 +1626,7 @@ pickScheme=function(parts){
 
 window.__testAssemble={
   randomCaught,
+  biasedCaught,
   draw(ctx,W,H,parts,scheme,time,reduced,progress){
     const hold=window.__forceScheme;
     window.__forceScheme=scheme;
