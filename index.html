@@ -741,184 +741,6 @@ function takeBest(pool, want) {
   return pool.splice(bi,1)[0];
 }
 
-function schemeSlots(scheme, n) {
-  // Priority: lower number is filled first. essential ones stay even with few parts.
-  if(scheme==='trex'){
-    const slots=[
-      {id:'body', zone:'body', x:300, y:340, rot:-0.05, scale:1.08, z:20, rank:1, want:{roundness:.55, elongation:1.15}},
-      {id:'head', zone:'head', x:395, y:230, rot:-0.28, scale:1.22, z:32, rank:1, want:{roundness:.5}},
-      {id:'jaw',  zone:'head', x:430, y:290, rot:0.55, scale:.55, z:31, rank:3, want:{spikiness:.55, minSpike:.3}},
-      {id:'legL', zone:'limbs', x:250, y:455, rot:0.2, scale:1.05, z:12, rank:2, want:{elongation:1.35, minElong:1.15}},
-      {id:'legR', zone:'limbs', x:345, y:470, rot:-0.12, scale:1.0, z:10, rank:2, want:{elongation:1.35, minElong:1.15}},
-      {id:'footL',zone:'limbs', x:235, y:535, rot:0.05, scale:.62, z:13, rank:4, want:{roundness:.4}},
-      {id:'footR',zone:'limbs', x:365, y:550, rot:-0.05, scale:.6, z:11, rank:4, want:{roundness:.4}},
-      {id:'armL', zone:'limbs', x:345, y:315, rot:0.95, scale:.36, z:26, rank:3, want:{elongation:1.3}},
-      {id:'armR', zone:'limbs', x:370, y:330, rot:1.15, scale:.32, z:25, rank:4, want:{elongation:1.3}},
-      {id:'tail', zone:'tail',  x:200, y:360, rot:2.75, scale:.8, z:8, rank:2, want:{elongation:1.5, minElong:1.2},
-        chain:{max:4, min:1, curve:0.18, step:1.0}},
-      {id:'back1',zone:'back', x:255, y:275, rot:-0.55, scale:.48, z:22, rank:3, want:{spikiness:.7, minSpike:.4}},
-      {id:'back2',zone:'back', x:305, y:255, rot:-0.3, scale:.45, z:22, rank:4, want:{spikiness:.7, minSpike:.4}},
-      {id:'back3',zone:'back', x:350, y:260, rot:-0.15, scale:.4, z:22, rank:5, want:{spikiness:.6}},
-      {id:'decor1',zone:'decor',x:375, y:195, rot:0, scale:.36, z:33, rank:5, want:{spikiness:.4}},
-      {id:'decor2',zone:'decor',x:300, y:385, rot:0, scale:.38, z:21, rank:5, want:{roundness:.6}}
-    ];
-    return slots;
-  }
-  if(scheme==='orb'){
-    return [
-      {id:'body', zone:'body', x:300, y:350, rot:0, scale:1.5, z:20, rank:1, want:{roundness:.85, minRound:.5}},
-      {id:'hornL',zone:'back', x:245, y:250, rot:-0.45, scale:.5, z:24, rank:2, want:{spikiness:.7, minSpike:.35}},
-      {id:'hornR',zone:'back', x:355, y:250, rot:0.45, scale:.48, z:24, rank:2, want:{spikiness:.7, minSpike:.35}},
-      {id:'hornM',zone:'back', x:300, y:225, rot:0, scale:.46, z:25, rank:3, want:{spikiness:.6}},
-      {id:'armL', zone:'limbs', x:185, y:365, rot:-0.2, scale:.52, z:14, rank:3, want:{elongation:1.4, minElong:1.15}},
-      {id:'armR', zone:'limbs', x:415, y:365, rot:0.2, scale:.52, z:14, rank:3, want:{elongation:1.4, minElong:1.15}},
-      {id:'legL', zone:'limbs', x:245, y:470, rot:0.1, scale:.58, z:12, rank:2, want:{elongation:1.3}},
-      {id:'legR', zone:'limbs', x:355, y:470, rot:-0.1, scale:.58, z:12, rank:2, want:{elongation:1.3}},
-      {id:'handL',zone:'limbs', x:155, y:410, rot:0, scale:.36, z:15, rank:5, want:{}},
-      {id:'handR',zone:'limbs', x:445, y:410, rot:0, scale:.36, z:15, rank:5, want:{}},
-      {id:'cheekL',zone:'decor',x:240, y:385, rot:0, scale:.36, z:21, rank:5, want:{roundness:.6}},
-      {id:'cheekR',zone:'decor',x:360, y:385, rot:0, scale:.36, z:21, rank:5, want:{roundness:.6}},
-      {id:'spot', zone:'decor',x:300, y:430, rot:0, scale:.34, z:21, rank:5, want:{roundness:.5}},
-      {id:'hat',  zone:'decor',x:265, y:280, rot:-0.3, scale:.36, z:23, rank:5, want:{}}
-    ];
-  }
-  // kraken
-  const tentAngles=[-1.05,-0.7,-0.35,0,0.35,0.7,1.05];
-  const slots=[
-    {id:'head', zone:'head', x:300, y:210, rot:0, scale:1.28, z:30, rank:1, want:{roundness:.8, minRound:.45}},
-    {id:'crown1',zone:'back', x:250, y:125, rot:-0.4, scale:.46, z:32, rank:3, want:{spikiness:.7, minSpike:.35}},
-    {id:'crown2',zone:'back', x:300, y:105, rot:0, scale:.5, z:32, rank:3, want:{spikiness:.7, minSpike:.35}},
-    {id:'crown3',zone:'back', x:350, y:125, rot:0.4, scale:.46, z:32, rank:4, want:{spikiness:.6}},
-    {id:'sideL', zone:'decor', x:210, y:215, rot:-0.3, scale:.4, z:28, rank:5, want:{roundness:.5}},
-    {id:'sideR', zone:'decor', x:390, y:215, rot:0.3, scale:.4, z:28, rank:5, want:{roundness:.5}}
-  ];
-  tentAngles.forEach((a,i)=>{
-    slots.push({
-      id:'tent'+i, zone:'limbs',
-      x:300+Math.sin(a)*55, y:300+Math.abs(Math.sin(a))*10,
-      rot:Math.PI/2+a*0.55, scale:.78, z:10+i,
-      rank: i<5?2:4,
-      want:{elongation:1.5, minElong:1.15},
-      chain:{max: n>=10?3:2, min: n>=7?2:1, curve:(i%2?1:-1)*0.22, step:1.02}
-    });
-  });
-  return slots;
-}
-
-function layoutParts(parts) {
-  const W=creature.width, H=creature.height;
-  const scheme=pickScheme(parts);
-  const n=parts.length;
-  const pool=parts.map((p,i)=>({...p, i, traits:p.traits?{...p.traits}:{roundness:.4,spikiness:.2,elongation:1,size:1}}));
-  const slots=schemeSlots(scheme, n).sort((a,b)=>a.rank-b.rank);
-
-  // Open only as many slots as we have parts, keeping low-rank (essential) first.
-  // Chain slots can consume several parts.
-  const assigned=[]; // {slot, pieces:[]}
-  let remaining=n;
-  for(const slot of slots){
-    if(remaining<=0)break;
-    const need = slot.chain
-      ? Math.min(slot.chain.max, Math.max(slot.chain.min, remaining>=8?slot.chain.max:slot.chain.min))
-      : 1;
-    // skip high-rank slots if we must still cover later equal-or-lower? already sorted
-    // if remaining is tight, skip rank>=4 until essentials filled — already order by rank
-    if(slot.rank>=4 && remaining <= 0) break;
-    const pieces=[];
-    const count=slot.chain? Math.min(need, remaining) : 1;
-    for(let k=0;k<count;k++){
-      const p=takeBest(pool, slot.want);
-      if(!p)break;
-      pieces.push(p);
-    }
-    if(pieces.length){
-      assigned.push({slot, pieces});
-      remaining-=pieces.length;
-    }
-  }
-  // leftovers: dump into extra decor around body/head
-  const bodySlot=(assigned.find(a=>a.slot.zone==='body')||assigned.find(a=>a.slot.zone==='head')||assigned[0]);
-  let extra=0;
-  while(pool.length){
-    const p=pool.shift();
-    const ang=-0.9+extra*0.65, rad=70+ (extra%3)*16;
-    const bx=bodySlot?bodySlot.slot.x:W/2, by=bodySlot?bodySlot.slot.y:H/2;
-    assigned.push({
-      slot:{id:'extra'+extra, zone:'decor', x:bx+Math.cos(ang)*rad, y:by+Math.sin(ang)*rad,
-        rot:ang, scale:.42, z:18, rank:6, want:{}},
-      pieces:[p]
-    });
-    extra++;
-  }
-
-  const laid=[];
-  assigned.forEach((a,ai)=>{
-    const sl=a.slot;
-    const distort=0.82+hash01(ai+3, n+7)*0.4; // 0.82–1.22
-    const baseR = Math.min(W,H)*0.11*sl.scale*distort*(n<=3?1.2:n<=7?1.08:1);
-    if(sl.chain && a.pieces.length){
-      let x=sl.x, y=sl.y, ang=sl.rot;
-      a.pieces.forEach((p,k)=>{
-        const r=baseR*(k===0?1:0.88-k*0.06)*(.85+hash01(p.i,13)*.3);
-        if(k>0){
-          ang += (sl.chain.curve||0.2);
-          const prev=laid[laid.length-1];
-          const dist=(prev.r+r)*(sl.chain.step||0.95);
-          x+=Math.cos(ang)*dist; y+=Math.sin(ang)*dist;
-        }
-        laid.push({...p, x, y, r, angle:ang+(p.rot||0)*.15, z:sl.z-k, role:sl.id, zone:sl.zone});
-      });
-    } else {
-      const p=a.pieces[0];
-      const r=baseR*(.85+hash01(p.i,21)*.3);
-      laid.push({...p, x:sl.x, y:sl.y, r, angle:sl.rot+(p.rot||0)*.12, z:sl.z, role:sl.id, zone:sl.zone});
-    }
-  });
-
-  // Fit into canvas
-  if(laid.length){
-    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
-    laid.forEach(p=>{
-      minX=Math.min(minX,p.x-p.r);maxX=Math.max(maxX,p.x+p.r);
-      minY=Math.min(minY,p.y-p.r);maxY=Math.max(maxY,p.y+p.r);
-    });
-    const margin=40;
-    const bw=Math.max(40,maxX-minX), bh=Math.max(40,maxY-minY);
-    const scale=Math.min((W-2*margin)/bw,(H-2*margin)/bh,1.4);
-    const midX=(minX+maxX)/2, midY=(minY+maxY)/2;
-    laid.forEach(p=>{
-      p.x=W/2+(p.x-midX)*scale;
-      p.y=H/2+(p.y-midY)*scale;
-      p.r=p.r*scale;
-    });
-  }
-
-  // Factory googly eyes — not caught items
-  const eyes=[];
-  const head=laid.find(p=>p.zone==='head')||laid.find(p=>p.role==='head');
-  const body=laid.find(p=>p.zone==='body')||laid.find(p=>p.role==='body')||laid[0];
-  if(scheme==='orb'){
-    const host=body||head||laid[0];
-    if(host) eyes.push({x:host.x, y:host.y-host.r*.06, r:host.r*.42, look:1});
-  } else if(scheme==='trex'){
-    const host=head||body||laid[0];
-    if(host){
-      const ex=host.x+host.r*.12, ey=host.y-host.r*.18, er=host.r*.26;
-      eyes.push({x:ex-er*.7, y:ey, r:er, look:1});
-      eyes.push({x:ex+er*.75, y:ey+er*.05, r:er*.92, look:1});
-    }
-  } else {
-    const host=head||body||laid[0];
-    if(host){
-      const ey=host.y-host.r*.08, er=host.r*.24;
-      eyes.push({x:host.x-er*.85, y:ey, r:er, look:1});
-      eyes.push({x:host.x+er*.85, y:ey, r:er, look:1});
-    }
-  }
-
-  return {parts:laid, scheme, eyes, body:body||laid[0]};
-}
-
 function makeName(parts, scheme) {
   const a=avgTraits(parts);
   const hasZig=parts.some(p=>p.kind==='zigzag'||p.kind==='worm'||p.label==='зигзаг'||p.label==='молния'||p.type===7);
@@ -941,8 +763,541 @@ function makeName(parts, scheme) {
   return adj+' тираннозавр';
 }
 
-function drawGoogly(c, x, y, r, t, reduced) {
-  const look= reduced?0.12: Math.sin((t||0)/700)*0.18;
+
+function parseHex(hex){
+  hex=String(hex||'#ff715f').replace('#','');
+  if(hex.length===3)hex=hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  return [parseInt(hex.slice(0,2),16)||0,parseInt(hex.slice(2,4),16)||0,parseInt(hex.slice(4,6),16)||0];
+}
+function toHex(r,g,b){
+  return '#'+[r,g,b].map(v=>('0'+Math.max(0,Math.min(255,v|0)).toString(16)).slice(-2)).join('');
+}
+function darken(hex,amt){
+  const [r,g,b]=parseHex(hex);
+  return toHex(r*(1-amt),g*(1-amt),b*(1-amt));
+}
+function lighten(hex,amt){
+  const [r,g,b]=parseHex(hex);
+  return toHex(r+(255-r)*amt,g+(255-g)*amt,b+(255-b)*amt);
+}
+function dominantColor(parts){
+  if(!parts||!parts.length)return '#ff715f';
+  const c={};
+  parts.forEach(p=>{ if(p.color)c[p.color]=(c[p.color]||0)+1; });
+  const keys=Object.keys(c);
+  if(!keys.length)return '#ff715f';
+  keys.sort((a,b)=>c[b]-c[a]);
+  return keys[0];
+}
+
+function capsulePath(c,x1,y1,x2,y2,r1,r2){
+  const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy)||1;
+  const nx=-dy/len,ny=dx/len,a=Math.atan2(dy,dx);
+  c.moveTo(x1+nx*r1,y1+ny*r1);
+  c.lineTo(x2+nx*r2,y2+ny*r2);
+  c.arc(x2,y2,Math.max(.1,r2),a-Math.PI/2,a+Math.PI/2);
+  c.lineTo(x1-nx*r1,y1-ny*r1);
+  c.arc(x1,y1,Math.max(.1,r1),a+Math.PI/2,a-Math.PI/2);
+  c.closePath();
+}
+function ribbonPath(c,spine){
+  if(!spine.length)return;
+  const L=[],R=[];
+  for(let i=0;i<spine.length;i++){
+    const p=spine[i], q=spine[Math.min(i+1,spine.length-1)], prev=spine[Math.max(i-1,0)];
+    let dx=q.x-prev.x,dy=q.y-prev.y,len=Math.hypot(dx,dy)||1;
+    const nx=-dy/len,ny=dx/len,w=p.w;
+    L.push({x:p.x+nx*w,y:p.y+ny*w});
+    R.push({x:p.x-nx*w,y:p.y-ny*w});
+  }
+  c.moveTo(L[0].x,L[0].y);
+  for(let i=1;i<L.length;i++)c.lineTo(L[i].x,L[i].y);
+  for(let i=R.length-1;i>=0;i--)c.lineTo(R[i].x,R[i].y);
+  c.closePath();
+}
+function sampleCurve(pts, steps){
+  // pts: [{x,y,w}], polyline subsampled for smoother ribbon
+  const out=[];
+  for(let i=0;i<pts.length-1;i++){
+    const a=pts[i],b=pts[i+1];
+    const n=i===pts.length-2?steps:steps-1;
+    for(let k=0;k<n;k++){
+      const t=k/steps;
+      out.push({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,w:a.w+(b.w-a.w)*t});
+    }
+  }
+  out.push(pts[pts.length-1]);
+  return out;
+}
+function paint(c,fill,stroke,lw){
+  c.fillStyle=fill;
+  c.strokeStyle=stroke;
+  c.lineWidth=lw;
+  c.lineJoin='round';
+  c.lineCap='round';
+  c.fill();
+  c.stroke();
+}
+
+// ---------- silhouettes in design space ----------
+function trexDesign(){
+  // Facing right. Hip ~ (0,10). Big head, tiny arms, thick legs, long tapering tail.
+  const bones={
+    root:{x:0,y:0,rot:-0.06,amp:0,phase:0},
+    torso:{parent:'root',x:18,y:-42,rot:-0.32,amp:0.025,phase:0.2,pivot:true},
+    head:{parent:'torso',x:72,y:-58,rot:-0.12,amp:0.035,phase:1.1,pivot:true},
+    jaw:{parent:'head',x:22,y:28,rot:0.08,amp:0.04,phase:2.2,pivot:true},
+    tail:{parent:'root',x:-18,y:-8,rot:0,amp:0.04,phase:0.6,pivot:true},
+    arm:{parent:'torso',x:48,y:8,rot:0,amp:0.06,phase:1.7,pivot:true},
+    legFar:{parent:'root',x:-16,y:16,rot:0,amp:0.03,phase:2.8,pivot:true},
+    legNear:{parent:'root',x:24,y:18,rot:0,amp:0.03,phase:3.5,pivot:true}
+  };
+  const shadow={x:15,y:168,rx:130,ry:20};
+  const bbox={minX:-268,minY:-210,maxX:225,maxY:175};
+  return {bones,shadow,bbox,tilt:-0.04};
+}
+function orbDesign(){
+  const bones={
+    root:{x:0,y:0,rot:0,amp:0,phase:0},
+    body:{parent:'root',x:0,y:0,rot:0,amp:0.02,phase:0.4,pivot:true},
+    hornL:{parent:'body',x:-48,y:-118,rot:0,amp:0.05,phase:1.2,pivot:true},
+    hornR:{parent:'body',x:52,y:-116,rot:0,amp:0.05,phase:1.8,pivot:true},
+    armL:{parent:'body',x:-118,y:10,rot:0,amp:0.06,phase:2.1,pivot:true},
+    armR:{parent:'body',x:118,y:10,rot:0,amp:0.06,phase:2.7,pivot:true},
+    legL:{parent:'body',x:-40,y:110,rot:0,amp:0.03,phase:0.8,pivot:true},
+    legR:{parent:'body',x:42,y:110,rot:0,amp:0.03,phase:1.5,pivot:true}
+  };
+  const shadow={x:0,y:168,rx:95,ry:18};
+  const bbox={minX:-175,minY:-175,maxX:175,maxY:175};
+  return {bones,shadow,bbox,tilt:0.05};
+}
+function krakenDesign(){
+  const bones={
+    root:{x:0,y:0,rot:0,amp:0,phase:0},
+    mantle:{parent:'root',x:0,y:-40,rot:0,amp:0.02,phase:0.5,pivot:true}
+  };
+  // 8 tentacle bones hanging from the mantle skirt
+  const tent=[];
+  const spreads=[-1.15,-0.82,-0.5,-0.22,0.22,0.5,0.82,1.15];
+  spreads.forEach((a,i)=>{
+    const id='tent'+i;
+    bones[id]={parent:'mantle',x:Math.sin(a)*70,y:70+Math.abs(Math.sin(a))*8,rot:0,amp:0.055,phase:0.7+i*0.7,pivot:true};
+    tent.push({id,a,i});
+  });
+  const shadow={x:0,y:310,rx:150,ry:22};
+  const bbox={minX:-210,minY:-180,maxX:210,maxY:320};
+  return {bones,shadow,bbox,tilt:0,tent};
+}
+
+function boneWorld(bones,id,t,reduced){
+  const chain=[];
+  let cur=id;
+  while(cur && bones[cur]){
+    chain.push(cur);
+    cur=bones[cur].parent;
+  }
+  chain.reverse();
+  let x=0,y=0,rot=0;
+  chain.forEach(k=>{
+    const b=bones[k];
+    const wig=(!reduced && b.amp)?Math.sin((t||0)/680+b.phase)*b.amp:0;
+    const lx=b.x||0, ly=b.y||0, lr=(b.rot||0)+wig;
+    const c=Math.cos(rot),s=Math.sin(rot);
+    x+=lx*c-ly*s;
+    y+=lx*s+ly*c;
+    rot+=lr;
+  });
+  return {x,y,rot};
+}
+
+function withBone(c,bones,id,t,reduced,fn){
+  const w=boneWorld(bones,id,t,reduced);
+  c.save();
+  c.translate(w.x,w.y);
+  c.rotate(w.rot);
+  fn(c);
+  c.restore();
+}
+
+function drawTrexSil(c, pal, bones, t, reduced){
+  const ink=pal.ink, lw=7;
+  // TAIL — tapered S-curve counterweight, pointy tip
+  withBone(c,bones,'tail',t,reduced,c=>{
+    c.beginPath();
+    const spine=[
+      {x:8,y:6,w:26},{x:-40,y:18,w:24},{x:-90,y:32,w:20},
+      {x:-140,y:22,w:15},{x:-185,y:-2,w:10},{x:-225,y:-28,w:5},{x:-252,y:-48,w:1.5}
+    ];
+    ribbonPath(c,sampleCurve(spine,6));
+    paint(c,pal.dark,ink,lw);
+  });
+  // FAR LEG (behind, darker)
+  withBone(c,bones,'legFar',t,reduced,c=>{
+    c.beginPath();
+    capsulePath(c,0,0,-28,68,22,20);
+    paint(c,pal.dark,ink,lw);
+    c.beginPath();
+    capsulePath(c,-28,68,-4,132,18,14);
+    paint(c,pal.dark,ink,lw);
+    // foot
+    c.beginPath();
+    c.ellipse(16,142,28,12,0.05,0,Math.PI*2);
+    paint(c,pal.dark,ink,lw);
+    // toes
+    [[28,140,12],[36,146,11],[20,150,10]].forEach(p=>{
+      c.beginPath();c.ellipse(p[0],p[1],p[2],6,0.15,0,Math.PI*2);paint(c,pal.dark,ink,lw*.8);
+    });
+  });
+  // BODY / torso
+  withBone(c,bones,'torso',t,reduced,c=>{
+    c.beginPath();
+    // local origin at torso bone, which is already at body center-ish
+    // draw a forward-leaning pear in local space (bone is at 18,-42 from hip)
+    c.moveTo(-48,48);
+    c.bezierCurveTo(-62,20,-70,-10,-52,-48);
+    c.bezierCurveTo(-30,-88,20,-100,55,-78);
+    c.bezierCurveTo(88,-58,100,-18,78,22);
+    c.bezierCurveTo(60,52,20,70,-10,62);
+    c.bezierCurveTo(-28,58,-40,54,-48,48);
+    c.closePath();
+    paint(c,pal.main,ink,lw);
+    // lighter belly
+    c.beginPath();
+    c.ellipse(20,18,36,28,-0.4,0,Math.PI*2);
+    c.fillStyle=pal.light;c.fill();
+  });
+  // NEAR LEG
+  withBone(c,bones,'legNear',t,reduced,c=>{
+    c.beginPath();
+    capsulePath(c,0,0,-8,72,26,22);
+    paint(c,pal.main,ink,lw);
+    c.beginPath();
+    capsulePath(c,-8,72,28,138,20,15);
+    paint(c,pal.main,ink,lw);
+    c.beginPath();
+    c.ellipse(50,148,32,13,0.08,0,Math.PI*2);
+    paint(c,pal.main,ink,lw);
+    [[64,146,13],[74,152,12],[54,156,11]].forEach(p=>{
+      c.beginPath();c.ellipse(p[0],p[1],p[2],6.5,0.18,0,Math.PI*2);paint(c,pal.main,ink,lw*.8);
+    });
+  });
+  // TINY ARMS (two-finger)
+  withBone(c,bones,'arm',t,reduced,c=>{
+    c.beginPath();
+    capsulePath(c,0,0,18,16,7,6);
+    paint(c,pal.main,ink,lw*.85);
+    c.beginPath();
+    capsulePath(c,18,16,34,22,5.5,4.5);
+    paint(c,pal.main,ink,lw*.85);
+    c.beginPath();
+    capsulePath(c,34,22,48,20,3.2,2.2);
+    paint(c,pal.main,ink,lw*.8);
+    c.beginPath();
+    capsulePath(c,34,22,46,30,3.2,2.2);
+    paint(c,pal.main,ink,lw*.8);
+  });
+  // HEAD
+  withBone(c,bones,'head',t,reduced,c=>{
+    // origin near the neck/jaw hinge area
+    c.beginPath();
+    c.moveTo(-10,18);
+    c.bezierCurveTo(-28,-10,-20,-58,20,-72);
+    c.bezierCurveTo(50,-82,78,-70,108,-52);
+    c.bezierCurveTo(128,-42,138,-30,132,-16); // snout tip
+    c.bezierCurveTo(124,-10,80,-6,18,6); // upper lip
+    c.bezierCurveTo(0,10,-6,16,-10,18);
+    c.closePath();
+    paint(c,pal.main,ink,lw);
+    // brow ridge
+    c.beginPath();
+    c.ellipse(18,-40,22,10,-0.3,0,Math.PI*2);
+    c.fillStyle=pal.dark;c.globalAlpha=.25;c.fill();c.globalAlpha=1;
+  });
+  // MOUTH CAVITY + JAW (mandatory)
+  withBone(c,bones,'jaw',t,reduced,c=>{
+    // dark open mouth — hinge at jaw bone origin (under the snout)
+    c.beginPath();
+    c.moveTo(-8,-12);
+    c.lineTo(96,-18);
+    c.lineTo(88,22);
+    c.quadraticCurveTo(40,28,-8,4);
+    c.closePath();
+    c.fillStyle=pal.mouth;c.fill();
+    c.strokeStyle=ink;c.lineWidth=lw*.7;c.stroke();
+    // lower jaw
+    c.beginPath();
+    c.moveTo(-10,0);
+    c.bezierCurveTo(30,18,80,22,100,16);
+    c.bezierCurveTo(106,28,70,44,24,36);
+    c.bezierCurveTo(0,30,-12,16,-10,0);
+    c.closePath();
+    paint(c,pal.dark,ink,lw);
+  });
+  // Default teeth (mandatory)
+  withBone(c,bones,'head',t,reduced,c=>{
+    const up=[[30,4],[48,2],[66,0],[84,-2],[102,-6]];
+    up.forEach(([x,y],i)=>{
+      const s=10-(i>3?2:0);
+      c.beginPath();c.moveTo(x-s*.45,y);c.lineTo(x,y+s*1.15);c.lineTo(x+s*.45,y);c.closePath();
+      paint(c,pal.teeth,ink,3);
+    });
+  });
+  withBone(c,bones,'jaw',t,reduced,c=>{
+    [[28,8],[50,10],[72,10],[90,6]].forEach(([x,y],i)=>{
+      const s=8;
+      c.beginPath();c.moveTo(x-s*.4,y);c.lineTo(x,y-s);c.lineTo(x+s*.4,y);c.closePath();
+      paint(c,pal.teeth,ink,3);
+    });
+  });
+}
+
+function drawOrbSil(c, pal, bones, t, reduced){
+  const ink=pal.ink, lw=7;
+  // FAR? no. Arms behind body? Arms slightly behind, legs in front of lower body.
+  withBone(c,bones,'armL',t,reduced,c=>{
+    c.beginPath();capsulePath(c,0,0,-48,22,8,6);paint(c,pal.main,ink,lw);
+    c.beginPath();c.arc(-52,26,8,0,Math.PI*2);paint(c,pal.main,ink,lw);
+  });
+  withBone(c,bones,'armR',t,reduced,c=>{
+    c.beginPath();capsulePath(c,0,0,48,22,8,6);paint(c,pal.main,ink,lw);
+    c.beginPath();c.arc(52,26,8,0,Math.PI*2);paint(c,pal.main,ink,lw);
+  });
+  withBone(c,bones,'hornL',t,reduced,c=>{
+    c.beginPath();
+    c.moveTo(-12,16);c.lineTo(0,-42);c.lineTo(14,16);c.closePath();
+    paint(c,pal.dark,ink,lw);
+  });
+  withBone(c,bones,'hornR',t,reduced,c=>{
+    c.beginPath();
+    c.moveTo(-14,16);c.lineTo(4,-46);c.lineTo(14,16);c.closePath();
+    paint(c,pal.dark,ink,lw);
+  });
+  withBone(c,bones,'body',t,reduced,c=>{
+    c.beginPath();c.arc(0,0,120,0,Math.PI*2);
+    paint(c,pal.main,ink,lw);
+    c.beginPath();c.ellipse(0,30,70,52,0,0,Math.PI*2);
+    c.fillStyle=pal.light;c.fill();
+  });
+  withBone(c,bones,'legL',t,reduced,c=>{
+    c.beginPath();capsulePath(c,0,0,-6,42,16,14);paint(c,pal.main,ink,lw);
+    c.beginPath();c.ellipse(-2,50,20,10,0,0,Math.PI*2);paint(c,pal.main,ink,lw);
+  });
+  withBone(c,bones,'legR',t,reduced,c=>{
+    c.beginPath();capsulePath(c,0,0,8,42,16,14);paint(c,pal.main,ink,lw);
+    c.beginPath();c.ellipse(10,50,20,10,0,0,Math.PI*2);paint(c,pal.main,ink,lw);
+  });
+}
+
+function tentacleSpine(i,a){
+  // hanging wavy tapered tentacle in the tentacle bone's local space
+  // bone is already at the skirt; local +y is downward in design space before bone rot
+  const len=185+Math.abs(a)*30+(i%3)*18;
+  const curl=(i%2?1:-1)*(0.7+Math.abs(a)*0.15);
+  const waves=1.15+ (i%3)*0.15;
+  const w0=18-Math.abs(a)*3;
+  const n=14, spine=[];
+  const dir=Math.PI/2+a*0.18; // mostly down, slightly out
+  for(let k=0;k<=n;k++){
+    const t=k/n;
+    const d=t*len;
+    const side=Math.sin(t*waves*Math.PI+i)*curl*28*t;
+    const ang=dir;
+    spine.push({
+      x:Math.cos(ang)*d+Math.cos(ang-Math.PI/2)*side,
+      y:Math.sin(ang)*d+Math.sin(ang-Math.PI/2)*side,
+      w:w0*(1-t*.92)
+    });
+  }
+  return spine;
+}
+
+function drawKrakenSil(c, pal, bones, t, reduced, tent){
+  const ink=pal.ink, lw=7;
+  // tentacles first (behind / around mantle)
+  tent.forEach(te=>{
+    withBone(c,bones,te.id,t,reduced,c=>{
+      c.beginPath();
+      ribbonPath(c,sampleCurve(tentacleSpine(te.i,te.a),5));
+      paint(c, te.i%2?pal.dark:pal.main, ink, lw);
+    });
+  });
+  // MANTLE / dome
+  withBone(c,bones,'mantle',t,reduced,c=>{
+    c.beginPath();
+    // bell-shaped dome, slightly flattened bottom
+    c.moveTo(-118,55);
+    c.bezierCurveTo(-125,20,-118,-40,-80,-85);
+    c.bezierCurveTo(-40,-125,40,-125,80,-85);
+    c.bezierCurveTo(118,-40,125,20,118,55);
+    c.bezierCurveTo(80,80, -80,80, -118,55);
+    c.closePath();
+    paint(c,pal.main,ink,lw);
+    // lighter highlight on top
+    c.beginPath();
+    c.ellipse(0,-20,70,48,0,0,Math.PI*2);
+    c.fillStyle=pal.light;c.globalAlpha=.35;c.fill();c.globalAlpha=1;
+  });
+}
+
+function classifyPart(p){
+  const t=p.traits||{};
+  const k=p.kind, typ=p.type;
+  if(k==='worm' || typ===14 || (t.elongation>=1.55 && (t.spikiness||0)<.55)) return 'long';
+  if(k==='spiky'||k==='zigzag'||typ===2||typ===3||typ===7||typ===10|| (t.spikiness||0)>=.5) return 'spiky';
+  if(k==='blob'||typ===0||typ===4||typ===8||typ===9||typ===11|| (t.roundness||0)>=.6) return 'round';
+  return 'decor';
+}
+
+function trexSlots(){
+  // local positions in the named bone's space
+  return [
+    {id:'tooth0',cls:'spiky',bone:'head',x:36,y:8,rot:0,sx:0.55,sy:1.1,r:11,z:34},
+    {id:'tooth1',cls:'spiky',bone:'head',x:70,y:4,rot:0.05,sx:0.55,sy:1.15,r:12,z:34},
+    {id:'tooth2',cls:'spiky',bone:'head',x:100,y:0,rot:0.1,sx:0.5,sy:1.1,r:10,z:34},
+    {id:'spine0',cls:'spiky',bone:'torso',x:-30,y:-60,rot:-1.1,sx:0.7,sy:1.2,r:16,z:22},
+    {id:'spine1',cls:'spiky',bone:'torso',x:-8,y:-78,rot:-1.0,sx:0.7,sy:1.2,r:15,z:22},
+    {id:'spine2',cls:'spiky',bone:'torso',x:20,y:-86,rot:-0.9,sx:0.65,sy:1.15,r:14,z:22},
+    {id:'claw0',cls:'spiky',bone:'legNear',x:68,y:148,rot:0.4,sx:0.7,sy:1.0,r:10,z:24},
+    {id:'cheek',cls:'round',bone:'head',x:30,y:-8,rot:0,sx:1,sy:0.85,r:16,z:33},
+    {id:'belly',cls:'round',bone:'torso',x:22,y:16,rot:-0.3,sx:1.2,sy:0.9,r:22,z:21},
+    {id:'knee',cls:'round',bone:'legNear',x:-6,y:70,rot:0,sx:1,sy:0.9,r:14,z:23},
+    {id:'hip',cls:'round',bone:'root',x:8,y:8,rot:0,sx:1,sy:0.85,r:14,z:21},
+    {id:'tail0',cls:'long',bone:'tail',x:-70,y:24,rot:2.9,sx:1.5,sy:0.45,r:16,z:9},
+    {id:'tail1',cls:'long',bone:'tail',x:-140,y:18,rot:3.3,sx:1.4,sy:0.4,r:14,z:9},
+    {id:'tail2',cls:'long',bone:'tail',x:-200,y:-12,rot:3.6,sx:1.3,sy:0.38,r:12,z:9},
+    {id:'thigh',cls:'long',bone:'legNear',x:-4,y:36,rot:1.4,sx:1.3,sy:0.5,r:16,z:23},
+    {id:'spot0',cls:'decor',bone:'torso',x:50,y:-20,rot:0.3,sx:1,sy:1,r:12,z:21},
+    {id:'spot1',cls:'decor',bone:'torso',x:-10,y:30,rot:0,sx:1,sy:1,r:11,z:21},
+    {id:'spot2',cls:'decor',bone:'head',x:8,y:-36,rot:0,sx:1,sy:1,r:10,z:33},
+    {id:'spot3',cls:'decor',bone:'legFar',x:-20,y:40,rot:0,sx:1,sy:1,r:11,z:9}
+  ];
+}
+function orbSlots(){
+  return [
+    {id:'hornA',cls:'spiky',bone:'hornL',x:0,y:-20,rot:0,sx:0.7,sy:1.2,r:14,z:26},
+    {id:'hornB',cls:'spiky',bone:'hornR',x:2,y:-22,rot:0,sx:0.7,sy:1.25,r:14,z:26},
+    {id:'hair',cls:'spiky',bone:'body',x:0,y:-118,rot:0,sx:0.8,sy:1.1,r:12,z:26},
+    {id:'cheekL',cls:'round',bone:'body',x:-62,y:28,rot:0,sx:1,sy:0.9,r:16,z:22},
+    {id:'cheekR',cls:'round',bone:'body',x:64,y:30,rot:0,sx:1,sy:0.9,r:16,z:22},
+    {id:'belly',cls:'round',bone:'body',x:0,y:48,rot:0,sx:1.2,sy:0.85,r:22,z:22},
+    {id:'kneeL',cls:'round',bone:'legL',x:-2,y:24,rot:0,sx:1,sy:0.9,r:11,z:14},
+    {id:'kneeR',cls:'round',bone:'legR',x:6,y:24,rot:0,sx:1,sy:0.9,r:11,z:14},
+    {id:'armOL',cls:'long',bone:'armL',x:-22,y:8,rot:2.6,sx:1.5,sy:0.4,r:12,z:13},
+    {id:'armOR',cls:'long',bone:'armR',x:22,y:8,rot:0.5,sx:1.5,sy:0.4,r:12,z:13},
+    {id:'spot0',cls:'decor',bone:'body',x:-30,y:-20,rot:0.2,sx:1,sy:1,r:12,z:22},
+    {id:'spot1',cls:'decor',bone:'body',x:40,y:-8,rot:-0.2,sx:1,sy:1,r:11,z:22},
+    {id:'spot2',cls:'decor',bone:'body',x:16,y:70,rot:0,sx:1,sy:1,r:10,z:22},
+    {id:'spot3',cls:'decor',bone:'body',x:-50,y:60,rot:0,sx:1,sy:1,r:10,z:22},
+    {id:'spot4',cls:'decor',bone:'body',x:55,y:50,rot:0,sx:1,sy:1,r:10,z:22}
+  ];
+}
+function krakenSlots(tent){
+  const slots=[
+    {id:'crown0',cls:'spiky',bone:'mantle',x:-40,y:-90,rot:-0.3,sx:0.7,sy:1.2,r:16,z:32},
+    {id:'crown1',cls:'spiky',bone:'mantle',x:0,y:-108,rot:0,sx:0.75,sy:1.25,r:17,z:32},
+    {id:'crown2',cls:'spiky',bone:'mantle',x:42,y:-90,rot:0.3,sx:0.7,sy:1.2,r:16,z:32},
+    {id:'cheekL',cls:'round',bone:'mantle',x:-60,y:10,rot:0,sx:1,sy:0.9,r:16,z:31},
+    {id:'cheekR',cls:'round',bone:'mantle',x:60,y:10,rot:0,sx:1,sy:0.9,r:16,z:31},
+    {id:'spot0',cls:'decor',bone:'mantle',x:-20,y:-30,rot:0,sx:1,sy:1,r:12,z:31},
+    {id:'spot1',cls:'decor',bone:'mantle',x:28,y:-20,rot:0,sx:1,sy:1,r:11,z:31}
+  ];
+  tent.forEach((te,i)=>{
+    slots.push({id:'tseg'+i+'a',cls:'long',bone:te.id,x:20,y:50,rot:Math.PI/2+te.a*0.18,sx:1.5,sy:0.4,r:14,z:12+i});
+    slots.push({id:'tseg'+i+'b',cls:'long',bone:te.id,x:40,y:120,rot:Math.PI/2+te.a*0.18,sx:1.3,sy:0.35,r:12,z:12+i});
+  });
+  // a couple of sucker-like rounds on inner tentacles
+  slots.push({id:'suck0',cls:'round',bone:'tent3',x:15,y:80,rot:0,sx:1,sy:1,r:9,z:18});
+  slots.push({id:'suck1',cls:'round',bone:'tent4',x:15,y:90,rot:0,sx:1,sy:1,r:9,z:18});
+  slots.push({id:'spot2',cls:'decor',bone:'mantle',x:0,y:30,rot:0,sx:1,sy:1,r:10,z:31});
+  return slots;
+}
+
+function assignDecals(scheme, parts, design){
+  const slots=scheme==='trex'?trexSlots():scheme==='orb'?orbSlots():krakenSlots(design.tent||[]);
+  const pool=parts.map((p,i)=>({...p,i,cls:classifyPart(p)}));
+  const by={spiky:[],long:[],round:[],decor:[]};
+  pool.forEach(p=>by[p.cls].push(p));
+  const used=new Set();
+  const placed=[];
+  const take=(cls)=>{
+    const arr=by[cls];
+    if(arr&&arr.length)return arr.shift();
+    // fallback chain
+    for(const k of ['decor','round','long','spiky']){
+      if(k!==cls && by[k]&&by[k].length)return by[k].shift();
+    }
+    return null;
+  };
+  slots.forEach(sl=>{
+    const p=take(sl.cls);
+    if(!p)return;
+    used.add(p);
+    placed.push({part:p, slot:sl});
+  });
+  // leftovers: sprinkle as small inner spots on the main body bone
+  const leftover=[].concat(by.spiky,by.long,by.round,by.decor);
+  const home=scheme==='kraken'?'mantle':scheme==='orb'?'body':'torso';
+  leftover.forEach((p,i)=>{
+    const ang=-0.8+i*0.7, rad=30+(i%4)*16;
+    placed.push({part:p, slot:{
+      id:'extra'+i,cls:'decor',bone:home,
+      x:Math.cos(ang)*rad,y:Math.sin(ang)*rad+(scheme==='orb'?10:0),
+      rot:ang,sx:1,sy:1,r:10,z:21
+    }});
+  });
+  return placed;
+}
+
+function eyeSlots(scheme){
+  if(scheme==='orb') return [{bone:'body',x:0,y:-8,r:58,look:1}];
+  if(scheme==='trex') return [
+    {bone:'head',x:10,y:-42,r:16,look:1},
+    {bone:'head',x:38,y:-38,r:15,look:1}
+  ];
+  return [
+    {bone:'mantle',x:-36,y:-8,r:22,look:1},
+    {bone:'mantle',x:36,y:-8,r:22,look:1}
+  ];
+}
+
+function palFrom(color){
+  return {
+    main:color,
+    dark:darken(color,.22),
+    light:lighten(color,.28),
+    ink:'#2a3344',
+    teeth:'#fff6e8',
+    mouth:darken(color,.55)
+  };
+}
+
+function fitOf(bbox,W,H){
+  const margin=36;
+  const bw=bbox.maxX-bbox.minX, bh=bbox.maxY-bbox.minY;
+  const s=Math.min((W-2*margin)/bw,(H-2*margin-18)/bh);
+  const cx=(bbox.minX+bbox.maxX)/2, cy=(bbox.minY+bbox.maxY)/2;
+  return {s, tx:W/2-cx*s, ty:H*0.48-cy*s};
+}
+
+function applyFit(c,fit,tilt){
+  c.translate(fit.tx,fit.ty);
+  c.scale(fit.s,fit.s);
+  c.rotate(tilt||0);
+}
+
+function layoutParts(parts){
+  const scheme=pickScheme(parts);
+  const color=dominantColor(parts);
+  const design=scheme==='trex'?trexDesign():scheme==='orb'?orbDesign():krakenDesign();
+  const pal=palFrom(color);
+  const decals=assignDecals(scheme,parts,design);
+  const eyes=eyeSlots(scheme);
+  const body=null;
+  return {parts:parts.slice(), scheme, color, pal, design, decals, eyes, body};
+}
+
+function drawGoogly(c,x,y,r,t,reduced){
+  const look=reduced?0.12:Math.sin((t||0)/700)*0.18;
   c.save();
   c.fillStyle='#fffdf7';
   c.strokeStyle='#1c2836';
@@ -956,7 +1311,68 @@ function drawGoogly(c, x, y, r, t, reduced) {
   c.restore();
 }
 
-function finish() {
+function drawCreature(c,W,H,layout,t,reduced,progress){
+  const {pal,design,decals,eyes,scheme}=layout;
+  const fit=fitOf(design.bbox,W,H);
+  const assembled=progress>=1;
+  const rise=1-Math.pow(1-Math.min(1,progress),3);
+  c.save();
+  // rise from below during fly-in
+  if(progress<1)c.translate(0,(1-rise)*(H*0.55));
+  applyFit(c,fit,design.tilt);
+  const bones=design.bones;
+  // shadow
+  const sh=design.shadow;
+  c.save();
+  c.fillStyle='rgba(30,22,40,'+(0.2*rise)+')';
+  c.beginPath();c.ellipse(sh.x,sh.y,sh.rx,sh.ry,0,0,Math.PI*2);c.fill();
+  c.restore();
+  if(scheme==='trex')drawTrexSil(c,pal,bones,assembled?t:0,reduced||progress<1);
+  else if(scheme==='orb')drawOrbSil(c,pal,bones,assembled?t:0,reduced||progress<1);
+  else drawKrakenSil(c,pal,bones,assembled?t:0,reduced||progress<1,design.tent);
+
+  // decals fly in
+  decals.forEach((d,i)=>{
+    const sl=d.slot, p=d.part;
+    const delay=Math.min(0.7,(p.i!=null?p.i:i)*0.035);
+    const local=Math.max(0,Math.min(1,(progress*950-delay*950)/950));
+    const ease=1-Math.pow(1-local,3);
+    if(ease<=0)return;
+    const bw=boneWorld(bones,sl.bone,assembled?t:0,reduced||progress<1);
+    // slot in bone space -> world design space
+    const cs=Math.cos(bw.rot),sn=Math.sin(bw.rot);
+    const wx=bw.x+sl.x*cs-sl.y*sn;
+    const wy=bw.y+sl.x*sn+sl.y*cs;
+    const ang=bw.rot+sl.rot;
+    // fly from below
+    const y0=design.bbox.maxY+80;
+    const x=wx, y=y0+(wy-y0)*ease;
+    c.save();
+    c.translate(x,y);
+    c.rotate(ang);
+    c.scale(sl.sx||1,sl.sy||1);
+    const fade=0.45+0.55*ease;
+    c.globalAlpha=fade;
+    drawToken(c,p,0,0,sl.r,0);
+    c.globalAlpha=1;
+    c.restore();
+  });
+
+  // eyes
+  const eyeT=reduced? (progress>=1?1:0) : Math.max(0,Math.min(1,(progress-0.72)/0.22));
+  if(eyeT>0){
+    eyes.forEach((e,i)=>{
+      const bw=boneWorld(bones,e.bone,assembled?t:0,reduced||progress<1);
+      const cs=Math.cos(bw.rot),sn=Math.sin(bw.rot);
+      const ex=bw.x+e.x*cs-e.y*sn;
+      const ey=bw.y+e.x*sn+e.y*cs;
+      drawGoogly(c,ex,ey,e.r*eyeT,t+i*200,reduced);
+    });
+  }
+  c.restore();
+}
+
+function finish(){
   if(!running)return;
   running=false;
   cancelAnimationFrame(raf);
@@ -964,9 +1380,7 @@ function finish() {
   $('result').classList.remove('hidden');
 
   const layout=layoutParts(caught);
-  const parts=layout.parts;
-  const scheme=layout.scheme;
-  $('creatureName').textContent=makeName(caught, scheme);
+  $('creatureName').textContent=makeName(caught, layout.scheme);
   $('creatureDesc').textContent=
     'Поймано деталей: '+caught.length+'. Все детали — твоя добыча!';
   $('rarity').textContent=caught.length>=13?'редкий экземпляр':
@@ -983,62 +1397,83 @@ function finish() {
   const t0=performance.now();
   const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const duration=reduced?0:950;
-  const body=layout.body||parts[0];
 
-  function draw(now) {
+  function draw(now){
     const W=creature.width,H=creature.height;
     const progress=Math.min(1,(now-t0)/duration||1);
     cc.clearRect(0,0,W,H);
     const bg=cc.createLinearGradient(0,0,W,H);
     bg.addColorStop(0,'#fffaf0');bg.addColorStop(1,'#f0dfc7');
     cc.fillStyle=bg;cc.fillRect(0,0,W,H);
-
-    const assembled=progress>=1;
-    const breath=(!reduced&&assembled)?1+Math.sin((now-t0)/650)*.03:1;
-    const wobble=(!reduced&&assembled)?Math.sin((now-t0)/900)*.045:0;
-    const bx=body?body.x:W/2, by=body?body.y:H/2;
-
-    const ordered=parts.slice().sort((a,b)=>a.z-b.z);
-    ordered.forEach((p,i)=>{
-      const delay=(p.i!=null?p.i:i)*35;
-      const t=Math.max(0,Math.min(1,(now-t0-delay)/(duration||1)));
-      const ease=1-Math.pow(1-t,3);
-      const sx=W/2, sy=H+50;
-      let x=sx+(p.x-sx)*ease;
-      let y=sy+(p.y-sy)*ease;
-      let r=p.r, ang=p.angle||0;
-      if(assembled&&!reduced){
-        x=bx+(p.x-bx)*breath;
-        y=by+(p.y-by)*breath+Math.sin((now-t0)/500+i)*.028*p.r;
-        r=p.r*breath;
-        ang=ang+wobble*(i%2?1:-.7);
-      } else if(assembled&&reduced){
-        x=p.x;y=p.y;
-      }
-      drawToken(cc,p,x,y,r,ang);
-    });
-
-    const eyeT=reduced?1:Math.max(0, Math.min(1, (now-t0-(duration*.7))/400));
-    if(eyeT>0 && layout.eyes){
-      layout.eyes.forEach((e,i)=>{
-        let ex=e.x, ey=e.y, er=e.r*eyeT;
-        if(assembled&&!reduced){
-          ex=bx+(e.x-bx)*breath;
-          ey=by+(e.y-by)*breath;
-          er=e.r*breath*eyeT;
-        }
-        drawGoogly(cc, ex, ey, er, now-t0+i*200, reduced);
-      });
-    }
-
+    drawCreature(cc,W,H,layout,now-t0,reduced,progress);
     $('animationNote').textContent=progress<1?
       'Детали собираются вместе…':'Готово! Оно живое?!';
-
     if(progress<1||!reduced)resultRaf=requestAnimationFrame(draw);
   }
   resultRaf=requestAnimationFrame(draw);
 }
 
+function randomCaught(n, seed){
+  const r=mulberry(seed==null?((Math.random()*1e9)|0):seed);
+  const oldPick=Math.random;
+  // local helpers using r
+  const rnd=(a,b)=>a+r()*(b-a);
+  const out=[];
+  for(let i=0;i<n;i++){
+    const isKrak=r()<0.48;
+    let part;
+    if(isKrak){
+      // reuse makeKrako but it uses Math.random; temporarily patch
+      const hold=Math.random;
+      Math.random=r;
+      part=makeKrako();
+      Math.random=hold;
+      part.type=-1;
+      part.traits.size=1;
+    } else {
+      const type=(r()*GEO.length)|0;
+      const g=GEO[type];
+      part={type,kind:null,pts:null,label:g.name,
+        traits:{roundness:g.roundness,spikiness:g.spikiness,elongation:g.elongation,size:1}};
+    }
+    part.color=colors[(r()*colors.length)|0];
+    part.rot=r()*6.28;
+    part.i=i;
+    out.push(part);
+  }
+  return out;
+}
+
+window.__forceScheme=null;
+const _pickScheme=pickScheme;
+pickScheme=function(parts){
+  if(window.__forceScheme)return window.__forceScheme;
+  return _pickScheme(parts);
+};
+
+window.__testAssemble={
+  randomCaught,
+  draw(ctx,W,H,parts,scheme,time,reduced,progress){
+    const hold=window.__forceScheme;
+    window.__forceScheme=scheme;
+    const layout=layoutParts(parts);
+    window.__forceScheme=hold;
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#fffaf0';ctx.fillRect(0,0,W,H);
+    drawCreature(ctx,W,H,layout,time||0,!!reduced,progress==null?1:progress);
+    return layout;
+  },
+  showResult(parts,scheme){
+    caught=parts.slice();
+    window.__forceScheme=scheme;
+    cancelAnimationFrame(raf);
+    cancelAnimationFrame(introRaf);
+    $('intro').classList.add('hidden');
+    $('hud').classList.add('hidden');
+    running=true;
+    finish();
+  }
+};
 function start() {
   cancelAnimationFrame(raf);
   cancelAnimationFrame(resultRaf);
