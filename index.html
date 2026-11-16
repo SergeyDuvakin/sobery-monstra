@@ -200,7 +200,7 @@ h2 {font-size:clamp(28px,7vw,46px);line-height:1;margin:10px 0}
       <div id="legend"></div>
       <p id="animationNote">Собираем твоего монстра…</p>
       <button class="primary" id="againBtn" type="button">Собрать ещё монстра</button>
-      <p class="muted">Каждая видимая деталь — одна из пойманных фигур.</p>
+      <p class="muted">Из твоих деталей. Глазки — подарок от фабрики.</p>
     </div>
   </section>
 </div>
@@ -219,11 +219,22 @@ const ic=introCanvas.getContext('2d');
 let introRaf=0,introW=0,introH=0,introDpr=1,introFloaters=[];
 
 const ROUND = 30, GOAL = 15;
-const names = [
- 'круг','квадрат','треугольник','звезда','сердце',
- 'ромб','шестиугольник','молния','облако','пончик',
- 'крестик','полумесяц','цветок','пятиугольник','стрелка',
- 'глаз','очки','рот','ладонь','ботинок','косточка','усы','язык'
+const GEO = [
+  {name:'круг',           roundness:1,   spikiness:0,    elongation:1},
+  {name:'квадрат',        roundness:.35, spikiness:.15,  elongation:1},
+  {name:'треугольник',    roundness:.2,  spikiness:.55,  elongation:1.1},
+  {name:'звезда',         roundness:.12, spikiness:.95,  elongation:1},
+  {name:'сердце',         roundness:.7,  spikiness:.12,  elongation:1.1},
+  {name:'ромб',           roundness:.3,  spikiness:.4,   elongation:1.45},
+  {name:'шестиугольник',  roundness:.55, spikiness:.2,   elongation:1},
+  {name:'молния',         roundness:.08, spikiness:.85,  elongation:1.85},
+  {name:'облако',         roundness:.88, spikiness:0,    elongation:1.35},
+  {name:'пончик',         roundness:1,   spikiness:0,    elongation:1},
+  {name:'крестик',        roundness:.18, spikiness:.5,   elongation:1},
+  {name:'полумесяц',      roundness:.7,  spikiness:.18,  elongation:1.2},
+  {name:'цветок',         roundness:.55, spikiness:.35,  elongation:1},
+  {name:'пятиугольник',   roundness:.5,  spikiness:.25,  elongation:1},
+  {name:'стрелка',        roundness:.12, spikiness:.6,   elongation:1.7}
 ];
 const colors = ['#ff7564','#ffd16d','#70d4b4','#75c5f2',
  '#bd98ef','#f28eb5','#f39b43','#a5d85e'];
@@ -260,6 +271,99 @@ resize();
 
 const rand=(a,b)=>a+Math.random()*(b-a);
 const pick=a=>a[Math.floor(Math.random()*a.length)];
+
+function mulberry(seed) {
+  let s=(seed>>>0)||1;
+  return () => {
+    s+=0x6D2B79F5;
+    let t=Math.imul(s^(s>>>15),1|s);
+    t^=t+Math.imul(t^(t>>>7),61|t);
+    return ((t^(t>>>14))>>>0)/4294967296;
+  };
+}
+function hash01(a,b){ return ((Math.imul((a+3)|0,0x45d9f3b)^(b*1103515245))>>>16)/65535; }
+
+function ribbon(line, half) {
+  const left=[], right=[];
+  for(let i=0;i<line.length;i++){
+    const p=line[i];
+    const q=line[i<line.length-1?i+1:i-1];
+    let dx=q[0]-p[0], dy=q[1]-p[1], len=Math.hypot(dx,dy)||1;
+    const nx=-dy/len*half, ny=dx/len*half;
+    left.push([p[0]+nx,p[1]+ny]);
+    right.push([p[0]-nx,p[1]-ny]);
+  }
+  return left.concat(right.reverse());
+}
+function normalizePts(pts) {
+  let max=0.001;
+  pts.forEach(p=>{ const d=Math.hypot(p[0],p[1]); if(d>max)max=d; });
+  return pts.map(p=>[p[0]/max,p[1]/max]);
+}
+
+function makeKrako() {
+  const seed=(Math.random()*0x7fffffff)|0;
+  const r=mulberry(seed);
+  const kind=pick(['blob','zigzag','worm','lumpy','spiky']);
+  let pts, traits, smooth=false, label;
+  if(kind==='blob'){
+    const n=10+(r()*8|0), ph=r()*Math.PI*2;
+    pts=[];
+    for(let i=0;i<n;i++){
+      const a=ph+i/n*Math.PI*2;
+      const rad=.58+r()*.5;
+      pts.push([Math.cos(a)*rad, Math.sin(a)*rad]);
+    }
+    traits={roundness:.72+r()*.22, spikiness:.08+r()*.22, elongation:.9+r()*.35};
+    smooth=true;
+    label=pick(['клякса','пузырь','капля','комок','пятно']);
+  } else if(kind==='zigzag'){
+    const segs=6+(r()*5|0), half=.16+r()*.12;
+    const up=[], dn=[];
+    for(let i=0;i<=segs;i++){
+      const t=i/segs, x=-1+t*2;
+      const y=((i%2)?1:-1)*(.4+r()*.4);
+      up.push([x,y+half]); dn.push([x,y-half]);
+    }
+    pts=up.concat(dn.reverse());
+    traits={roundness:.1, spikiness:.55+r()*.25, elongation:1.55+r()*.5};
+    label=pick(['зигзаг','излом','шеврон','ломаная']);
+  } else if(kind==='worm'){
+    const segs=8+(r()*7|0), amp=.22+r()*.38, freq=1.1+r()*2.2, thick=.15+r()*.14;
+    const ph=r()*Math.PI*2, line=[];
+    for(let i=0;i<=segs;i++){
+      const t=i/segs;
+      line.push([-0.98+t*1.96, Math.sin(t*freq*Math.PI*2+ph)*amp]);
+    }
+    pts=ribbon(line, thick);
+    traits={roundness:.42, spikiness:.05+r()*.1, elongation:1.8+r()*.7};
+    smooth=true;
+    label=pick(['червяк','извилина','хвостик','спиралька','вьюнок']);
+  } else if(kind==='lumpy'){
+    const n=5+(r()*5|0), ph=r()*Math.PI*2;
+    pts=[];
+    for(let i=0;i<n;i++){
+      const a=ph+i/n*Math.PI*2+(r()-.5)*.28;
+      pts.push([Math.cos(a)*(.42+r()*.7), Math.sin(a)*(.42+r()*.7)]);
+    }
+    traits={roundness:.3+r()*.3, spikiness:.22+r()*.3, elongation:.85+r()*.55};
+    label=pick(['коряга','бугор','глыба','урод','кракозябра']);
+  } else {
+    const spikes=5+(r()*8|0), ph=-Math.PI/2+(r()-.5)*.5;
+    pts=[];
+    for(let i=0;i<spikes;i++){
+      const a0=ph+i/spikes*Math.PI*2;
+      const a1=ph+(i+.5)/spikes*Math.PI*2;
+      pts.push([Math.cos(a0)*(.7+r()*.5), Math.sin(a0)*(.7+r()*.5)]);
+      pts.push([Math.cos(a1)*(.16+r()*.26), Math.sin(a1)*(.16+r()*.26)]);
+    }
+    traits={roundness:.08, spikiness:.8+r()*.2, elongation:.9+r()*.35};
+    label=pick(['колючка','ёж','шип','иголка','колючка']);
+  }
+  pts=normalizePts(pts);
+  traits.size=1;
+  return {kind, seed, pts, traits, label, smooth};
+}
 
 function shape(c,t,x,y,r) {
   c.beginPath();
@@ -385,13 +489,35 @@ function shape(c,t,x,y,r) {
   }
 }
 
+function krakPath(c,o,r) {
+  const P=o.pts.map(p=>[p[0]*r,p[1]*r]);
+  c.beginPath();
+  if(o.smooth && P.length>2){
+    const last=P[P.length-1];
+    c.moveTo((P[0][0]+last[0])/2,(P[0][1]+last[1])/2);
+    for(let i=0;i<P.length;i++){
+      const n=P[(i+1)%P.length];
+      c.quadraticCurveTo(P[i][0],P[i][1],(P[i][0]+n[0])/2,(P[i][1]+n[1])/2);
+    }
+    c.closePath();
+  } else {
+    P.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));
+    c.closePath();
+  }
+}
+
 function drawToken(c,o,x,y,r,angle=0) {
   c.save();c.translate(x,y);c.rotate(angle);
   if(o.flip)c.scale(-1,1);
   c.shadowColor=o.color;c.shadowBlur=r*.35;
   c.fillStyle=o.color;c.strokeStyle='#fffdf7';c.lineWidth=Math.max(1.5,r*.09);
-  shape(c,o.type,0,0,r);
-  c.fill(o.type===9?'evenodd':'nonzero');c.stroke();
+  if(o.kind && o.pts){
+    krakPath(c,o,r);
+    c.fill();c.stroke();
+  } else {
+    shape(c,o.type,0,0,r);
+    c.fill(o.type===9?'evenodd':'nonzero');c.stroke();
+  }
   c.shadowBlur=0;
 
   if(o.type===15) {
@@ -411,10 +537,18 @@ function drawToken(c,o,x,y,r,angle=0) {
   c.restore();
 }
 
+function speedRange() {
+  const short=Math.min(w,h);
+  const t=Math.min(1, elapsed/ROUND);
+  // Start clearly faster than the old 0.20–0.34*short, ramp to a brisk finish.
+  return [(0.32+0.18*t)*short, (0.46+0.24*t)*short];
+}
+
 function spawn() {
   const b=playBounds();
   const short=Math.min(w,h);
-  const speed=rand(.20,.34)*short;
+  const [lo,hi]=speedRange();
+  const speed=rand(lo,hi);
   const side=Math.floor(Math.random()*4);
   let x,y;
   if(side===0){x=b.left+8;y=rand(b.top+24,b.bottom-24)}
@@ -424,11 +558,28 @@ function spawn() {
   const tx=rand(b.left+(b.right-b.left)*.28, b.right-(b.right-b.left)*.28);
   const ty=rand(b.top+(b.bottom-b.top)*.28, b.bottom-(b.bottom-b.top)*.28);
   const dx=tx-x,dy=ty-y,len=Math.hypot(dx,dy)||1;
-  const r=short<=520?rand(26,36):rand(22,30);
+  const rad=short<=520?rand(26,36):rand(22,30);
+  const isKrak=Math.random()<0.48;
+  let part;
+  if(isKrak){
+    part=makeKrako();
+    part.type=-1;
+    part.traits.size=rad/30;
+  } else {
+    const type=Math.floor(Math.random()*GEO.length);
+    const g=GEO[type];
+    part={
+      type, kind:null, pts:null, label:g.name,
+      traits:{
+        roundness:g.roundness, spikiness:g.spikiness,
+        elongation:g.elongation, size:rad/30
+      }
+    };
+  }
   targets.push({
-    x,y,vx:dx/len*speed,vy:dy/len*speed,r,
-    type:Math.floor(Math.random()*names.length),
-    color:pick(colors),rot:rand(0,6.28),spin:rand(-1.2,1.2),life:rand(12,16)
+    ...part,
+    x,y,vx:dx/len*speed,vy:dy/len*speed,r:rad,
+    color:pick(colors),rot:rand(0,6.28),spin:rand(-1.4,1.4),life:rand(9,14)
   });
 }
 
@@ -455,12 +606,19 @@ function background() {
 
 function update(dt) {
   elapsed+=dt;spawnClock+=dt;
-  const interval=targets.length<6?.28:targets.length<8?.45:.75;
+  const interval=targets.length<6?.26:targets.length<8?.42:.7;
   while(spawnClock>interval&&targets.length<9){spawnClock-=interval;spawn()}
   if(targets.length>=9)spawnClock=Math.min(spawnClock,interval);
   const b=playBounds();
+  const [lo,hi]=speedRange();
+  const aim=(lo+hi)*0.55;
   for(let i=targets.length-1;i>=0;i--) {
     let o=targets[i];
+    const sp=Math.hypot(o.vx,o.vy)||1;
+    if(sp<aim){
+      const k=Math.min(aim/sp, 1+dt*0.55);
+      o.vx*=k;o.vy*=k;
+    }
     o.x+=o.vx*dt;o.y+=o.vy*dt;o.rot+=o.spin*dt;o.life-=dt;
     if(o.y<b.top+o.r&&o.vy<0){o.y=b.top+o.r;o.vy=Math.abs(o.vy)}
     if(o.y>b.bottom-o.r&&o.vy>0){o.y=b.bottom-o.r;o.vy=-Math.abs(o.vy)}
@@ -499,11 +657,15 @@ function catchAt(x,y) {
     const o=targets[i];
     if((x-o.x)**2+(y-o.y)**2<(o.r*1.35+24)**2) {
       targets.splice(i,1);
-      caught.push({type:o.type,color:o.color,rot:o.rot});
+      caught.push({
+        type:o.type, kind:o.kind, pts:o.pts, smooth:o.smooth,
+        seed:o.seed, label:o.label, traits:{...o.traits},
+        color:o.color, rot:o.rot
+      });
       burst(o.x,o.y,o.color);
       $('score').textContent=caught.length;
       $('meter').style.width=(caught.length/GOAL*100)+'%';
-      $('hint').textContent='Поймано: '+names[o.type]+'!';
+      $('hint').textContent='Поймано: '+(o.label||'деталь')+'!';
       if(caught.length>=GOAL)finish();
       return;
     }
@@ -516,195 +678,282 @@ field.addEventListener('pointerdown',e=>{
   catchAt(e.clientX-rect.left,e.clientY-rect.top);
 },{passive:false});
 
+function avgTraits(parts) {
+  if(!parts.length)return {roundness:.5,spikiness:.3,elongation:1};
+  const s={roundness:0,spikiness:0,elongation:0};
+  parts.forEach(p=>{
+    const t=p.traits||{};
+    s.roundness+=t.roundness||.4;
+    s.spikiness+=t.spikiness||.2;
+    s.elongation+=t.elongation||1;
+  });
+  const n=parts.length;
+  return {roundness:s.roundness/n, spikiness:s.spikiness/n, elongation:s.elongation/n};
+}
+
+function requestedScheme() {
+  try {
+    const q=(new URLSearchParams(location.search).get('scheme')||'').toLowerCase();
+    if(['trex','t-rex','tRex','dino','tyrant','тираннозавр'].includes(q))return 'trex';
+    if(['orb','cyclops','eye','shar','ball','одноглаз','один'].includes(q))return 'orb';
+    if(['kraken','krak','octopus','кракен'].includes(q))return 'kraken';
+  } catch(e){}
+  return null;
+}
+
+function pickScheme(parts) {
+  const forced=requestedScheme();
+  if(forced)return forced;
+  const a=avgTraits(parts);
+  const w={
+    trex: 1 + a.spikiness*0.9 + (a.elongation>1.25?0.25:0),
+    orb:  1 + a.roundness*1.0 - a.spikiness*0.15,
+    kraken:1 + Math.max(0,a.elongation-1)*0.8 + a.spikiness*0.2
+  };
+  const total=w.trex+w.orb+w.kraken;
+  let x=Math.random()*total;
+  if((x-=w.trex)<=0)return 'trex';
+  if((x-=w.orb)<=0)return 'orb';
+  return 'kraken';
+}
+
+function scorePart(p, want) {
+  if(!want)return 0;
+  const t=p.traits||{};
+  let s=0;
+  if(want.roundness!=null) s-=Math.abs((t.roundness||0)-want.roundness);
+  if(want.spikiness!=null) s-=Math.abs((t.spikiness||0)-want.spikiness)*1.15;
+  if(want.elongation!=null) s-=Math.abs((t.elongation||1)-want.elongation)*0.55;
+  if(want.minSpike && (t.spikiness||0)>=want.minSpike) s+=.5;
+  if(want.minElong && (t.elongation||1)>=want.minElong) s+=.5;
+  if(want.minRound && (t.roundness||0)>=want.minRound) s+=.5;
+  if(want.maxRound!=null && (t.roundness||0)<=want.maxRound) s+=.2;
+  return s;
+}
+
+function takeBest(pool, want) {
+  if(!pool.length)return null;
+  let bi=0, bs=-1e9;
+  pool.forEach((p,i)=>{
+    const s=scorePart(p,want);
+    if(s>bs){bs=s;bi=i;}
+  });
+  return pool.splice(bi,1)[0];
+}
+
+function schemeSlots(scheme, n) {
+  // Priority: lower number is filled first. essential ones stay even with few parts.
+  if(scheme==='trex'){
+    const slots=[
+      {id:'body', zone:'body', x:300, y:340, rot:-0.05, scale:1.08, z:20, rank:1, want:{roundness:.55, elongation:1.15}},
+      {id:'head', zone:'head', x:395, y:230, rot:-0.28, scale:1.22, z:32, rank:1, want:{roundness:.5}},
+      {id:'jaw',  zone:'head', x:430, y:290, rot:0.55, scale:.55, z:31, rank:3, want:{spikiness:.55, minSpike:.3}},
+      {id:'legL', zone:'limbs', x:250, y:455, rot:0.2, scale:1.05, z:12, rank:2, want:{elongation:1.35, minElong:1.15}},
+      {id:'legR', zone:'limbs', x:345, y:470, rot:-0.12, scale:1.0, z:10, rank:2, want:{elongation:1.35, minElong:1.15}},
+      {id:'footL',zone:'limbs', x:235, y:535, rot:0.05, scale:.62, z:13, rank:4, want:{roundness:.4}},
+      {id:'footR',zone:'limbs', x:365, y:550, rot:-0.05, scale:.6, z:11, rank:4, want:{roundness:.4}},
+      {id:'armL', zone:'limbs', x:345, y:315, rot:0.95, scale:.36, z:26, rank:3, want:{elongation:1.3}},
+      {id:'armR', zone:'limbs', x:370, y:330, rot:1.15, scale:.32, z:25, rank:4, want:{elongation:1.3}},
+      {id:'tail', zone:'tail',  x:200, y:360, rot:2.75, scale:.8, z:8, rank:2, want:{elongation:1.5, minElong:1.2},
+        chain:{max:4, min:1, curve:0.18, step:1.0}},
+      {id:'back1',zone:'back', x:255, y:275, rot:-0.55, scale:.48, z:22, rank:3, want:{spikiness:.7, minSpike:.4}},
+      {id:'back2',zone:'back', x:305, y:255, rot:-0.3, scale:.45, z:22, rank:4, want:{spikiness:.7, minSpike:.4}},
+      {id:'back3',zone:'back', x:350, y:260, rot:-0.15, scale:.4, z:22, rank:5, want:{spikiness:.6}},
+      {id:'decor1',zone:'decor',x:375, y:195, rot:0, scale:.36, z:33, rank:5, want:{spikiness:.4}},
+      {id:'decor2',zone:'decor',x:300, y:385, rot:0, scale:.38, z:21, rank:5, want:{roundness:.6}}
+    ];
+    return slots;
+  }
+  if(scheme==='orb'){
+    return [
+      {id:'body', zone:'body', x:300, y:350, rot:0, scale:1.5, z:20, rank:1, want:{roundness:.85, minRound:.5}},
+      {id:'hornL',zone:'back', x:245, y:250, rot:-0.45, scale:.5, z:24, rank:2, want:{spikiness:.7, minSpike:.35}},
+      {id:'hornR',zone:'back', x:355, y:250, rot:0.45, scale:.48, z:24, rank:2, want:{spikiness:.7, minSpike:.35}},
+      {id:'hornM',zone:'back', x:300, y:225, rot:0, scale:.46, z:25, rank:3, want:{spikiness:.6}},
+      {id:'armL', zone:'limbs', x:185, y:365, rot:-0.2, scale:.52, z:14, rank:3, want:{elongation:1.4, minElong:1.15}},
+      {id:'armR', zone:'limbs', x:415, y:365, rot:0.2, scale:.52, z:14, rank:3, want:{elongation:1.4, minElong:1.15}},
+      {id:'legL', zone:'limbs', x:245, y:470, rot:0.1, scale:.58, z:12, rank:2, want:{elongation:1.3}},
+      {id:'legR', zone:'limbs', x:355, y:470, rot:-0.1, scale:.58, z:12, rank:2, want:{elongation:1.3}},
+      {id:'handL',zone:'limbs', x:155, y:410, rot:0, scale:.36, z:15, rank:5, want:{}},
+      {id:'handR',zone:'limbs', x:445, y:410, rot:0, scale:.36, z:15, rank:5, want:{}},
+      {id:'cheekL',zone:'decor',x:240, y:385, rot:0, scale:.36, z:21, rank:5, want:{roundness:.6}},
+      {id:'cheekR',zone:'decor',x:360, y:385, rot:0, scale:.36, z:21, rank:5, want:{roundness:.6}},
+      {id:'spot', zone:'decor',x:300, y:430, rot:0, scale:.34, z:21, rank:5, want:{roundness:.5}},
+      {id:'hat',  zone:'decor',x:265, y:280, rot:-0.3, scale:.36, z:23, rank:5, want:{}}
+    ];
+  }
+  // kraken
+  const tentAngles=[-1.05,-0.7,-0.35,0,0.35,0.7,1.05];
+  const slots=[
+    {id:'head', zone:'head', x:300, y:210, rot:0, scale:1.28, z:30, rank:1, want:{roundness:.8, minRound:.45}},
+    {id:'crown1',zone:'back', x:250, y:125, rot:-0.4, scale:.46, z:32, rank:3, want:{spikiness:.7, minSpike:.35}},
+    {id:'crown2',zone:'back', x:300, y:105, rot:0, scale:.5, z:32, rank:3, want:{spikiness:.7, minSpike:.35}},
+    {id:'crown3',zone:'back', x:350, y:125, rot:0.4, scale:.46, z:32, rank:4, want:{spikiness:.6}},
+    {id:'sideL', zone:'decor', x:210, y:215, rot:-0.3, scale:.4, z:28, rank:5, want:{roundness:.5}},
+    {id:'sideR', zone:'decor', x:390, y:215, rot:0.3, scale:.4, z:28, rank:5, want:{roundness:.5}}
+  ];
+  tentAngles.forEach((a,i)=>{
+    slots.push({
+      id:'tent'+i, zone:'limbs',
+      x:300+Math.sin(a)*55, y:300+Math.abs(Math.sin(a))*10,
+      rot:Math.PI/2+a*0.55, scale:.78, z:10+i,
+      rank: i<5?2:4,
+      want:{elongation:1.5, minElong:1.15},
+      chain:{max: n>=10?3:2, min: n>=7?2:1, curve:(i%2?1:-1)*0.22, step:1.02}
+    });
+  });
+  return slots;
+}
+
 function layoutParts(parts) {
-  const W=creature.width,H=creature.height;
-  const laid=parts.map((p,i)=>({...p,i,angle:p.rot||0,flip:false,z:5,r:40,x:W/2,y:H/2}));
-  if(!laid.length)return laid;
+  const W=creature.width, H=creature.height;
+  const scheme=pickScheme(parts);
+  const n=parts.length;
+  const pool=parts.map((p,i)=>({...p, i, traits:p.traits?{...p.traits}:{roundness:.4,spikiness:.2,elongation:1,size:1}}));
+  const slots=schemeSlots(scheme, n).sort((a,b)=>a.rank-b.rank);
 
-  const ordinary=laid.filter(p=>p.type<15);
-  const freq=Array(15).fill(0);
-  ordinary.forEach(p=>freq[p.type]++);
-  let body=null;
-  if(ordinary.length){
-    const best=freq.indexOf(Math.max(...freq));
-    body=ordinary.find(p=>p.type===best);
+  // Open only as many slots as we have parts, keeping low-rank (essential) first.
+  // Chain slots can consume several parts.
+  const assigned=[]; // {slot, pieces:[]}
+  let remaining=n;
+  for(const slot of slots){
+    if(remaining<=0)break;
+    const need = slot.chain
+      ? Math.min(slot.chain.max, Math.max(slot.chain.min, remaining>=8?slot.chain.max:slot.chain.min))
+      : 1;
+    // skip high-rank slots if we must still cover later equal-or-lower? already sorted
+    // if remaining is tight, skip rank>=4 until essentials filled — already order by rank
+    if(slot.rank>=4 && remaining <= 0) break;
+    const pieces=[];
+    const count=slot.chain? Math.min(need, remaining) : 1;
+    for(let k=0;k<count;k++){
+      const p=takeBest(pool, slot.want);
+      if(!p)break;
+      pieces.push(p);
+    }
+    if(pieces.length){
+      assigned.push({slot, pieces});
+      remaining-=pieces.length;
+    }
+  }
+  // leftovers: dump into extra decor around body/head
+  const bodySlot=(assigned.find(a=>a.slot.zone==='body')||assigned.find(a=>a.slot.zone==='head')||assigned[0]);
+  let extra=0;
+  while(pool.length){
+    const p=pool.shift();
+    const ang=-0.9+extra*0.65, rad=70+ (extra%3)*16;
+    const bx=bodySlot?bodySlot.slot.x:W/2, by=bodySlot?bodySlot.slot.y:H/2;
+    assigned.push({
+      slot:{id:'extra'+extra, zone:'decor', x:bx+Math.cos(ang)*rad, y:by+Math.sin(ang)*rad,
+        rot:ang, scale:.42, z:18, rank:6, want:{}},
+      pieces:[p]
+    });
+    extra++;
   }
 
-  const n=laid.length;
-  const boost=n<=3?1.22:n<=6?1.1:1;
-  const cx=W/2,cy=H*.50;
-  // No ordinary body: use a compact virtual torso so specials cluster
-  // into one creature instead of being stretched to opposite edges.
-  const bodyR=body
-    ? Math.min(W,H)*(n<=2?.26:.20)*boost
-    : Math.min(W,H)*0.13*boost;
-  if(body){
-    body.x=cx;body.y=cy;body.r=bodyR;body.z=20;body.angle=0;body.role='body';
-  }
-
-  const restOrd=ordinary.filter(p=>p!==body);
-  const head=restOrd.shift()||null;
-  const headR=bodyR*.58;
-  const headX=cx, headY=cy-bodyR*.92;
-  if(head){
-    head.x=headX;head.y=headY;head.r=headR;head.z=30;head.angle=0;head.role='head';
-  }
-
-  const faceX=head?head.x:cx;
-  const faceY=head?head.y:cy-bodyR*.32;
-  const faceR=head?headR:bodyR*.72;
-
-  const earL=restOrd.shift()||null;
-  const earR=restOrd.shift()||null;
-  if(earL){
-    const a=-Math.PI*.72, d=faceR*.95;
-    earL.x=faceX+Math.cos(a)*d;earL.y=faceY+Math.sin(a)*d;
-    earL.r=bodyR*.38;earL.z=18;earL.angle=a+Math.PI/2;earL.role='ear';
-  }
-  if(earR){
-    const a=-Math.PI*.28, d=faceR*.95;
-    earR.x=faceX+Math.cos(a)*d;earR.y=faceY+Math.sin(a)*d;
-    earR.r=bodyR*.36;earR.z=18;earR.angle=a+Math.PI/2;earR.role='ear';
-  }
-
-  const belly=restOrd.shift()||null;
-  if(belly){
-    belly.x=cx;belly.y=cy+bodyR*.38;belly.r=bodyR*.42;
-    belly.z=24;belly.angle=0;belly.role='belly';
-  }
-
-  const tail=restOrd.shift()||null;
-  if(tail){
-    tail.x=cx+bodyR*.92;tail.y=cy+bodyR*.68;tail.r=bodyR*.40;
-    tail.z=8;tail.angle=.7;tail.role='tail';
-  }
-
-  const spikeAngles=[-.55,.55,-2.35,2.35,Math.PI,-1.15,1.15,-2.85,2.85,0,-1.85,1.85];
-  restOrd.forEach((p,i)=>{
-    const a=spikeAngles[i%spikeAngles.length];
-    const isPatch=i%3===2;
-    if(isPatch){
-      const d=bodyR*(.25+(i%4)*0.08);
-      p.x=cx+Math.cos(a)*.55*d;p.y=cy+bodyR*.15+Math.sin(a)*.4*d;
-      p.r=bodyR*.26;p.z=25;p.angle=a;p.role='patch';
+  const laid=[];
+  assigned.forEach((a,ai)=>{
+    const sl=a.slot;
+    const distort=0.82+hash01(ai+3, n+7)*0.4; // 0.82–1.22
+    const baseR = Math.min(W,H)*0.11*sl.scale*distort*(n<=3?1.2:n<=7?1.08:1);
+    if(sl.chain && a.pieces.length){
+      let x=sl.x, y=sl.y, ang=sl.rot;
+      a.pieces.forEach((p,k)=>{
+        const r=baseR*(k===0?1:0.88-k*0.06)*(.85+hash01(p.i,13)*.3);
+        if(k>0){
+          ang += (sl.chain.curve||0.2);
+          const prev=laid[laid.length-1];
+          const dist=(prev.r+r)*(sl.chain.step||0.95);
+          x+=Math.cos(ang)*dist; y+=Math.sin(ang)*dist;
+        }
+        laid.push({...p, x, y, r, angle:ang+(p.rot||0)*.15, z:sl.z-k, role:sl.id, zone:sl.zone});
+      });
     } else {
-      const d=bodyR*.82;
-      p.x=cx+Math.cos(a)*d;p.y=cy+Math.sin(a)*d;
-      p.r=bodyR*.34;p.z=12;p.angle=a+Math.PI/2;p.role='spike';
+      const p=a.pieces[0];
+      const r=baseR*(.85+hash01(p.i,21)*.3);
+      laid.push({...p, x:sl.x, y:sl.y, r, angle:sl.rot+(p.rot||0)*.12, z:sl.z, role:sl.id, zone:sl.zone});
     }
   });
 
-  const eyes=laid.filter(p=>p.type===15);
-  const glasses=laid.filter(p=>p.type===16);
-  const mouths=laid.filter(p=>p.type===17);
-  const hands=laid.filter(p=>p.type===18);
-  const boots=laid.filter(p=>p.type===19);
-  const bones=laid.filter(p=>p.type===20);
-  const staches=laid.filter(p=>p.type===21);
-  const tongues=laid.filter(p=>p.type===22);
-
-  const eyeR=faceR*(eyes.length===1?.32:.26);
-  const eyeY=faceY-faceR*.06;
-  if(eyes.length===1){
-    eyes[0].x=faceX;eyes[0].y=eyeY;eyes[0].r=eyeR;eyes[0].z=40;eyes[0].angle=0;
-  } else {
-    eyes.forEach((p,i)=>{
-      if(i<2){
-        p.x=faceX+(i===0?-1:1)*faceR*.38;p.y=eyeY;p.r=eyeR;
-      } else if(i===2){
-        p.x=faceX;p.y=faceY-faceR*.58;p.r=eyeR*.9;
-      } else {
-        const a=-Math.PI/2+(i-1.5)*.5;
-        p.x=faceX+Math.cos(a)*faceR*.7;p.y=faceY+Math.sin(a)*faceR*.7;p.r=eyeR*.8;
-      }
-      p.z=40;p.angle=0;
+  // Fit into canvas
+  if(laid.length){
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    laid.forEach(p=>{
+      minX=Math.min(minX,p.x-p.r);maxX=Math.max(maxX,p.x+p.r);
+      minY=Math.min(minY,p.y-p.r);maxY=Math.max(maxY,p.y+p.r);
+    });
+    const margin=40;
+    const bw=Math.max(40,maxX-minX), bh=Math.max(40,maxY-minY);
+    const scale=Math.min((W-2*margin)/bw,(H-2*margin)/bh,1.4);
+    const midX=(minX+maxX)/2, midY=(minY+maxY)/2;
+    laid.forEach(p=>{
+      p.x=W/2+(p.x-midX)*scale;
+      p.y=H/2+(p.y-midY)*scale;
+      p.r=p.r*scale;
     });
   }
 
-  glasses.forEach((p,i)=>{
-    p.x=faceX+(i? (i%2?1:-1)*faceR*.2 : 0);
-    p.y=eyeY+(i? i*8 : 0);
-    p.r=eyes.length>=2?faceR*.62:faceR*.42;
-    p.z=42;p.angle=0;
-  });
-
-  staches.forEach((p,i)=>{
-    p.x=faceX;p.y=eyeY+faceR*.32+i*10;
-    p.r=faceR*.40;p.z=43;p.angle=0;
-  });
-
-  mouths.forEach((p,i)=>{
-    p.x=faceX;p.y=faceY+faceR*.46+i*16;
-    p.r=faceR*.34;p.z=36;p.angle=0;
-  });
-
-  tongues.forEach((p,i)=>{
-    const mx=mouths[0]?mouths[0].x:faceX;
-    const my=mouths[0]?mouths[0].y+faceR*.28:faceY+faceR*.62;
-    p.x=mx;p.y=my+i*12;p.r=faceR*.26;p.z=38;p.angle=0;
-  });
-
-  hands.forEach((p,i)=>{
-    const left=i%2===0;
-    const row=Math.floor(i/2);
-    const reach=n<=3?bodyR*.75:bodyR*1.18;
-    p.x=cx+(left?-1:1)*reach;
-    p.y=cy+bodyR*.08+row*bodyR*.5;
-    p.r=bodyR*.42;p.z=16;p.angle=left?-.45:.45;p.flip=left;p.role='hand';
-  });
-
-  boots.forEach((p,i)=>{
-    const left=i%2===0;
-    const row=Math.floor(i/2);
-    p.x=cx+(left?-1:1)*(bodyR*.58+row*bodyR*.2);
-    p.y=cy+bodyR*.96+row*bodyR*.28;
-    p.r=bodyR*.38;p.z=10;p.angle=0;p.flip=left;p.role='boot';
-  });
-
-  bones.forEach((p,i)=>{
-    if(hands[i]){
-      p.x=hands[i].x+(hands[i].flip?-1:1)*bodyR*.35;
-      p.y=hands[i].y-bodyR*.25;
-    } else {
-      p.x=cx+bodyR*1.05;p.y=cy+bodyR*.15+i*24;
+  // Factory googly eyes — not caught items
+  const eyes=[];
+  const head=laid.find(p=>p.zone==='head')||laid.find(p=>p.role==='head');
+  const body=laid.find(p=>p.zone==='body')||laid.find(p=>p.role==='body')||laid[0];
+  if(scheme==='orb'){
+    const host=body||head||laid[0];
+    if(host) eyes.push({x:host.x, y:host.y-host.r*.06, r:host.r*.42, look:1});
+  } else if(scheme==='trex'){
+    const host=head||body||laid[0];
+    if(host){
+      const ex=host.x+host.r*.12, ey=host.y-host.r*.18, er=host.r*.26;
+      eyes.push({x:ex-er*.7, y:ey, r:er, look:1});
+      eyes.push({x:ex+er*.75, y:ey+er*.05, r:er*.92, look:1});
     }
-    p.r=bodyR*.32;p.z=34;p.angle=i%2?-.6:.8;
-  });
+  } else {
+    const host=head||body||laid[0];
+    if(host){
+      const ey=host.y-host.r*.08, er=host.r*.24;
+      eyes.push({x:host.x-er*.85, y:ey, r:er, look:1});
+      eyes.push({x:host.x+er*.85, y:ey, r:er, look:1});
+    }
+  }
 
-  // Fit the assembled silhouette into the canvas with a margin.
-  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
-  laid.forEach(p=>{
-    minX=Math.min(minX,p.x-p.r);maxX=Math.max(maxX,p.x+p.r);
-    minY=Math.min(minY,p.y-p.r);maxY=Math.max(maxY,p.y+p.r);
-  });
-  const margin=36;
-  const bw=Math.max(40,maxX-minX),bh=Math.max(40,maxY-minY);
-  const scale=Math.min((W-2*margin)/bw,(H-2*margin)/bh,1.35);
-  const midX=(minX+maxX)/2,midY=(minY+maxY)/2;
-  laid.forEach(p=>{
-    p.x=W/2+(p.x-midX)*scale;
-    p.y=H/2+(p.y-midY)*scale;
-    p.r=p.r*scale;
-  });
-  return laid;
+  return {parts:laid, scheme, eyes, body:body||laid[0]};
 }
 
-function makeName(parts) {
-  const count=t=>parts.filter(p=>p.type===t).length;
-  if(count(15)+count(16)*2>=3)return 'Трёхглазый начальник';
-  if(count(21))return 'Усатый разрушитель';
-  if(count(18)>=2&&count(19)>=2)return 'Руконогий чемпион';
-  if(count(20))return 'Костлявый профессор';
-  if(count(17)+count(22)>=2)return 'Говорун без тормозов';
-  const stems=['Кругляш','Квадрозавр','Треуглозавр','Звездолап',
-    'Сердцеед','Ромбобот','Шестигран','Молниехвост',
-    'Облачник','Пончикоид','Крестокрыл','Лунатик',
-    'Цветожор','Пятиугол','Стрелочник'];
-  const ordinary=parts.filter(p=>p.type<15);
-  if(!ordinary.length)return 'Неопознанный монстр';
-  const freq=Array(15).fill(0);
-  ordinary.forEach(p=>freq[p.type]++);
-  return stems[freq.indexOf(Math.max(...freq))];
+function makeName(parts, scheme) {
+  const a=avgTraits(parts);
+  const hasZig=parts.some(p=>p.kind==='zigzag'||p.kind==='worm'||p.label==='зигзаг'||p.label==='молния'||p.type===7);
+  const hasSpike=parts.some(p=>p.kind==='spiky'||p.type===3||(p.traits&&p.traits.spikiness>.75));
+  let adj;
+  if(a.spikiness>=.55 || hasSpike) adj=pick(['Колючий','Игольчатый','Зубастый']);
+  else if(hasZig || a.elongation>=1.55) adj=pick(['Кривой','Зигзаговый','Червячный']);
+  else if(a.roundness>=.7) adj=pick(['Пухлый','Круглый','Шаровидный']);
+  else if(parts.some(p=>p.kind==='lumpy'||p.kind==='blob')) adj=pick(['Бугристый','Корявый','Странный']);
+  else adj=pick(['Странный','Абсурдный','Кривой']);
+
+  if(scheme==='kraken'){
+    if(adj==='Зигзаговый' || (hasZig && a.elongation>1.4)) return 'Зигзагокракен';
+    return adj+' кракен';
+  }
+  if(scheme==='orb'){
+    if(adj==='Кривой') return 'Кривой одноглаз';
+    return adj+' одноглаз';
+  }
+  return adj+' тираннозавр';
+}
+
+function drawGoogly(c, x, y, r, t, reduced) {
+  const look= reduced?0.12: Math.sin((t||0)/700)*0.18;
+  c.save();
+  c.fillStyle='#fffdf7';
+  c.strokeStyle='#1c2836';
+  c.lineWidth=Math.max(2,r*.1);
+  c.beginPath();c.ellipse(x,y,r,r*1.06,0,0,Math.PI*2);c.fill();c.stroke();
+  const px=x+r*look, py=y+r*.12;
+  c.fillStyle='#1a2430';
+  c.beginPath();c.arc(px,py,r*.45,0,Math.PI*2);c.fill();
+  c.fillStyle='#fff';
+  c.beginPath();c.arc(px+r*.14,py-r*.16,r*.15,0,Math.PI*2);c.fill();
+  c.restore();
 }
 
 function finish() {
@@ -714,7 +963,10 @@ function finish() {
   $('hud').classList.add('hidden');
   $('result').classList.remove('hidden');
 
-  $('creatureName').textContent=makeName(caught);
+  const layout=layoutParts(caught);
+  const parts=layout.parts;
+  const scheme=layout.scheme;
+  $('creatureName').textContent=makeName(caught, scheme);
   $('creatureDesc').textContent=
     'Поймано деталей: '+caught.length+'. Все детали — твоя добыча!';
   $('rarity').textContent=caught.length>=13?'редкий экземпляр':
@@ -724,15 +976,14 @@ function finish() {
   caught.forEach(p=>{
     const dot=document.createElement('span');
     dot.className='dot';dot.style.background=p.color;
-    dot.title=names[p.type];$('legend').appendChild(dot);
+    dot.title=p.label||'';$('legend').appendChild(dot);
   });
 
   cancelAnimationFrame(resultRaf);
-  const parts=layoutParts(caught);
   const t0=performance.now();
   const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const duration=reduced?0:950;
-  const body=parts.find(p=>p.role==='body')||parts[0];
+  const body=layout.body||parts[0];
 
   function draw(now) {
     const W=creature.width,H=creature.height;
@@ -749,7 +1000,7 @@ function finish() {
 
     const ordered=parts.slice().sort((a,b)=>a.z-b.z);
     ordered.forEach((p,i)=>{
-      const delay=p.i*35;
+      const delay=(p.i!=null?p.i:i)*35;
       const t=Math.max(0,Math.min(1,(now-t0-delay)/(duration||1)));
       const ease=1-Math.pow(1-t,3);
       const sx=W/2, sy=H+50;
@@ -766,6 +1017,19 @@ function finish() {
       }
       drawToken(cc,p,x,y,r,ang);
     });
+
+    const eyeT=reduced?1:Math.max(0, Math.min(1, (now-t0-(duration*.7))/400));
+    if(eyeT>0 && layout.eyes){
+      layout.eyes.forEach((e,i)=>{
+        let ex=e.x, ey=e.y, er=e.r*eyeT;
+        if(assembled&&!reduced){
+          ex=bx+(e.x-bx)*breath;
+          ey=by+(e.y-by)*breath;
+          er=e.r*breath*eyeT;
+        }
+        drawGoogly(cc, ex, ey, er, now-t0+i*200, reduced);
+      });
+    }
 
     $('animationNote').textContent=progress<1?
       'Детали собираются вместе…':'Готово! Оно живое?!';
