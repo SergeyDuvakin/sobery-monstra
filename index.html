@@ -927,38 +927,74 @@ function withBone(c,bones,id,t,reduced,fn){
 }
 
 function trexTailSpine(m){
-  const s=0.70+0.48*(m.elong-0.72);
-  const w=0.55*m.limb;
+  // Wide at the hips so the tail flows out of the body, then tapers to a point.
+  const s=0.72+0.46*(m.elong-0.72);
+  const w=0.9*m.limb;
   return [
-    {x:12,y:8,w:22*w},{x:-48*s,y:22,w:20*w},{x:-100*s,y:32*Math.min(1.15,s),w:16*w},
-    {x:-155*s,y:16*s,w:11*w},{x:-200*s,y:-8*s,w:7*w},{x:-242*s,y:-36*s,w:3.5*w},{x:-272*s,y:-58*s,w:1.3}
+    {x:28,y:-8,w:40*w},{x:-8*s,y:10,w:32*w},{x:-70*s,y:26,w:24*w},
+    {x:-130*s,y:22,w:16*w},{x:-182*s,y:4,w:10*w},{x:-226*s,y:-24*s,w:5*w},{x:-262*s,y:-50*s,w:1.4}
   ];
+}
+
+function trexLegGeom(kind, m){
+  // Classic side-view T-rex: thick thigh down-forward, shin angled back, foot + toes forward.
+  const thk=m.limb*(0.95+0.45*(m.fat-0.76)), near=kind==='near', k=near?1:0.92;
+  const thigh={
+    x0:near?6:-2, y0:6,
+    x1:near?28:18, y1:78*k,
+    r0:34*thk*(near?1.08:0.95), r1:26*thk*(near?1:0.92)
+  };
+  const shin={
+    x0:thigh.x1, y0:thigh.y1,
+    x1:near?-8:-16, y1:136*k,
+    r0:22*thk*(near?1:0.92), r1:13*thk
+  };
+  const foot={
+    x:shin.x1+28, y:shin.y1+8,
+    rx:34*(near?1:0.9), ry:13,
+    toes:near
+      ?[[18,-3,12],[28,3,11],[10,9,10]]
+      :[[16,-3,11],[26,3,10],[8,9,9]]
+  };
+  return {thigh,shin,foot};
+}
+
+function trexSeg(s){
+  return {
+    x:(s.x0+s.x1)/2,
+    y:(s.y0+s.y1)/2,
+    rot:Math.atan2(s.y1-s.y0,s.x1-s.x0),
+    len:Math.hypot(s.x1-s.x0,s.y1-s.y0)
+  };
 }
 
 function trexDesign(m){
   const F=m.fat, E=m.elong;
-  const neck=62*(0.72+0.5*(E-0.72));
-  const headX=58+neck*0.55, headY=-50-(F-1)*8;
+  const neck=48*(0.85+0.3*(E-0.72));
+  // Hip is the origin: torso, tail and legs all meet here.
   const bones={
-    root:{x:0,y:0,rot:-0.06,amp:0,phase:0},
-    torso:{parent:'root',x:16,y:-40-(F-1)*10,rot:-0.30,amp:0.025,phase:0.2,pivot:true},
-    head:{parent:'torso',x:headX,y:headY,rot:-0.10,amp:0.035,phase:1.1,pivot:true},
+    root:{x:0,y:0,rot:-0.04,amp:0,phase:0},
+    torso:{parent:'root',x:22,y:-30-(F-1)*6,rot:-0.34,amp:0.025,phase:0.2,pivot:true},
+    head:{parent:'torso',x:50+neck*0.22,y:-20-(F-1)*3,rot:-0.04,amp:0.035,phase:1.1,pivot:true},
     jaw:{parent:'head',x:24,y:30,rot:0.08,amp:0.04,phase:2.2,pivot:true},
-    tail:{parent:'root',x:-16,y:-6,rot:0,amp:0.04,phase:0.6,pivot:true},
-    arm:{parent:'torso',x:44,y:10,rot:0,amp:0.06,phase:1.7,pivot:true},
-    legFar:{parent:'root',x:-18,y:16,rot:0,amp:0.03,phase:2.8,pivot:true},
-    legNear:{parent:'root',x:26,y:18,rot:0,amp:0.03,phase:3.5,pivot:true}
+    tail:{parent:'root',x:-4,y:-2,rot:0.08,amp:0.04,phase:0.6,pivot:true},
+    arm:{parent:'torso',x:44,y:18,rot:0,amp:0.06,phase:1.7,pivot:true},
+    // Hips sit under the pear and overlap its bottom.
+    legFar:{parent:'root',x:-10,y:10,rot:0,amp:0.03,phase:2.8,pivot:true},
+    legNear:{parent:'root',x:12,y:12,rot:0,amp:0.03,phase:3.5,pivot:true}
   };
   const tail=trexTailSpine(m);
   const tip=tail[tail.length-1];
-  const shadow={x:18,y:168+ (F-1)*12,rx:110+F*28,ry:18+F*4};
+  const legNear=trexLegGeom('near',m);
+  const legFar=trexLegGeom('far',m);
+  const shadow={x:10,y:168+(F-1)*12,rx:120+F*28,ry:18+F*4};
   const bbox={
-    minX:Math.min(-90, tip.x-30)-20,
-    minY:-200-(F-1)*20,
-    maxX:230+ (F-1)*20,
-    maxY:175+(F-1)*16
+    minX:Math.min(-100, tip.x-36)-16,
+    minY:-210-(F-1)*20,
+    maxX:240+(F-1)*20,
+    maxY:180+(F-1)*16
   };
-  return {bones,shadow,bbox,tilt:-0.04,tail,morph:m};
+  return {bones,shadow,bbox,tilt:-0.03,tail,legNear,legFar,morph:m};
 }
 
 function orbDesign(m){
@@ -1072,37 +1108,48 @@ function drawBodyPart(c,o,r){
 
 function drawTrexTissue(c, pal, bones, t, reduced, design){
   const m=design.morph, ink=pal.ink, lw=5.5;
-  const F=m.fat, th=m.limb;
-  const fill=pal.tissue;
+  const F=m.fat, fill=pal.tissue;
   c.save();
-  c.globalAlpha=0.62;
-  // tail
+  c.globalAlpha=0.7;
+  // TAIL — wide at the hip so it reads as a continuous taper out of the body
   withBone(c,bones,'tail',t,reduced,c=>{
     c.beginPath();
     ribbonPath(c,sampleCurve(design.tail,6));
     paint(c,pal.dark,ink,lw);
   });
-  const legW=30*th;
+  // FAR LEG (behind the body)
   withBone(c,bones,'legFar',t,reduced,c=>{
-    c.beginPath();capsulePath(c,2,0,-6,70,legW+4,legW-2);paint(c,pal.dark,ink,lw);
-    c.beginPath();capsulePath(c,-6,70,10,140,legW-2,18);paint(c,pal.dark,ink,lw);
-    c.beginPath();c.ellipse(26,150,32,13,0.06,0,Math.PI*2);paint(c,pal.dark,ink,lw);
+    drawTrexLeg(c, pal, design.legFar, ink, lw, true);
   });
-  withBone(c,bones,'torso',t,reduced,c=>{
+  // HIP fill only (no extra outline) — glues tail and thighs into the pear
+  withBone(c,bones,'root',t,reduced,c=>{
     c.beginPath();
-    const sx=50*F, sy=58*F;
-    c.ellipse(8,16,sx,sy,-0.32,0,Math.PI*2);
+    c.ellipse(8,6,38+F*8,28+F*4,0.12,0,Math.PI*2);
+    c.fillStyle=fill;c.fill();
+  });
+  // PEAR TORSO: wide hips at the rear, chest tapering into a short thick neck
+  withBone(c,bones,'torso',t,reduced,c=>{
+    const rw=62*Math.min(1.25,F), nw=28*Math.min(1.2,F), len=70*Math.min(1.22,F);
+    c.beginPath();
+    // start at rear-upper (back)
+    c.moveTo(-len*0.62, -rw*0.15);
+    c.bezierCurveTo(-len*0.8, -rw*0.55, -len*0.25, -rw*0.95, 10, -rw*0.62);
+    c.bezierCurveTo(len*0.42, -rw*0.4, len*0.62, -nw*0.7, len*0.82, -nw*0.15);
+    c.bezierCurveTo(len*0.95, nw*0.35, len*0.55, nw*0.85, 12, rw*0.72);
+    c.bezierCurveTo(-len*0.15, rw*1.12, -len*0.72, rw*0.8, -len*0.62, -rw*0.15);
+    c.closePath();
+    paint(c,fill,ink,lw);
+    // short thick neck into the head
+    const hx=bones.head.x, hy=bones.head.y;
+    c.beginPath();
+    capsulePath(c, len*0.62, -4, hx*0.88, hy+10, 22*Math.min(1.15,F), 18);
     paint(c,fill,ink,lw);
   });
+  // NEAR LEG — overlaps the bottom of the torso
   withBone(c,bones,'legNear',t,reduced,c=>{
-    c.beginPath();capsulePath(c,4,0,2,74,legW+8,legW);paint(c,fill,ink,lw);
-    c.beginPath();capsulePath(c,2,74,16,142,legW,20);paint(c,fill,ink,lw);
-    c.beginPath();c.ellipse(36,152,36,15,0.08,0,Math.PI*2);paint(c,fill,ink,lw);
-    [[50,150,12],[60,156,11],[42,160,10]].forEach(p=>{
-      c.beginPath();c.ellipse(p[0],p[1],p[2],6,0.15,0,Math.PI*2);paint(c,fill,ink,lw*.8);
-    });
+    drawTrexLeg(c, pal, design.legNear, ink, lw, false);
   });
-  // tiny arms — connective only, stay tiny
+  // tiny arms
   withBone(c,bones,'arm',t,reduced,c=>{
     c.beginPath();capsulePath(c,0,0,28,16,7,5);paint(c,fill,ink,lw);
     c.beginPath();capsulePath(c,28,16,22,28,5,3.5);paint(c,fill,ink,lw);
@@ -1110,7 +1157,6 @@ function drawTrexTissue(c, pal, bones, t, reduced, design){
   });
   withBone(c,bones,'head',t,reduced,c=>{
     c.beginPath();
-    // cranium + snout profile, thinner than v4
     c.moveTo(-36,-18);
     c.bezierCurveTo(-40,-70,10,-88,48,-60);
     c.bezierCurveTo(78,-48,96,-28,108,-8);
@@ -1121,6 +1167,25 @@ function drawTrexTissue(c, pal, bones, t, reduced, design){
     paint(c,fill,ink,lw);
   });
   c.restore();
+}
+
+function drawTrexLeg(c, pal, geom, ink, lw, dark){
+  const fill=dark?pal.dark:pal.tissue;
+  const th=geom.thigh, sh=geom.shin, ft=geom.foot;
+  c.beginPath();
+  capsulePath(c,th.x0,th.y0,th.x1,th.y1,th.r0,th.r1);
+  paint(c,fill,ink,lw);
+  c.beginPath();
+  capsulePath(c,sh.x0,sh.y0,sh.x1,sh.y1,sh.r0,sh.r1);
+  paint(c,fill,ink,lw);
+  c.beginPath();
+  c.ellipse(ft.x,ft.y,ft.rx,ft.ry,0.08,0,Math.PI*2);
+  paint(c,fill,ink,lw);
+  (ft.toes||[]).forEach(p=>{
+    c.beginPath();
+    c.ellipse(ft.x+p[0],ft.y+p[1],p[2],6,0.18,0,Math.PI*2);
+    paint(c,fill,ink,lw*0.8);
+  });
 }
 
 function drawTrexJaw(c, pal, bones, t, reduced, design){
@@ -1248,17 +1313,23 @@ function slot(id,cls,bone,x,y,rot,sx,sy,r,z,pri){
 function trexSlots(design){
   const m=design.morph, F=m.fat, E=m.elong;
   const slots=[];
-  // Few big anatomical masses only — extras are assigned as merges / a back-spike row.
-  slots.push(slot('head','round','head',6,-26,-0.12,1.32,1.12,64*F,40,1));
-  slots.push(slot('torso','round','torso',8,18,-0.3,1.18,1.12,84*F,30,2));
-  slots.push(slot('legN','lumpy','legNear',6,78,1.22,0.88,1.9,54*m.limb,28,3));
-  slots.push(slot('legF','lumpy','legFar',-4,74,1.28,0.84,1.85,50*m.limb,8,4));
+  // Torso: biggest caught shape, aligned to the body axis (slot.rot=0 — bone already leans).
+  // Deformed into a forward-leaning pear, like the orb's body slot.
+  slots.push(slot('torso','round','torso',4,8,0,1.32,1.08,68*Math.min(1.22,F),20,1));
+  slots.push(slot('head','round','head',4,-22,0,1.22,1.08,58*F,40,2));
+  // Legs: one part per thigh and shin, rotation = bone direction only.
+  [['N','legNear',design.legNear,28],['F','legFar',design.legFar,8]].forEach(([tag,bone,geom,z])=>{
+    const th=trexSeg(geom.thigh), sh=trexSeg(geom.shin);
+    const k=tag==='N'?1:0.92;
+    slots.push(slot('thigh'+tag,'lumpy',bone,th.x,th.y,th.rot, 1.85, 0.72, 38*m.limb*k, z, 3+(tag==='F'?1:0)));
+    slots.push(slot('shin'+tag,'lumpy',bone,sh.x,sh.y,sh.rot, 1.7, 0.58, 30*m.limb*k, z, 5+(tag==='F'?1:0)));
+  });
   const tailN=Math.max(2, Math.min(4, 2+Math.round((E-0.85)*1.6)+(m.counts.long>=3?1:0)));
   const spine=sampleCurve(design.tail,6);
   for(let i=0;i<tailN;i++){
-    const t=(i+0.55)/(tailN+0.15);
-    const p=spineAt(spine,t);
-    slots.push(slot('tail'+i,'long','tail',p.x,p.y,p.rot,2.35-t*0.4,0.78,46-i*4,6,5+i));
+    const tt=(i+0.45)/(tailN+0.2);
+    const p=spineAt(spine,tt);
+    slots.push(slot('tail'+i,'long','tail',p.x,p.y,p.rot,2.2-tt*0.35,0.7, 42-i*4, 10, 7+i));
   }
   slots.push(slot('arm','long','arm',16,8,0.5,1.35,0.42,14,35,20));
   return slots;
@@ -1375,50 +1446,75 @@ function assignTrex(parts, design){
   const used=new Set();
   const takeFor=makeTaker(pool, used);
   const placed=[];
-  // Fill the few big core slots first (head, torso, 2 legs, 2–4 tail, tiny arm last)
-  core.sort((a,b)=>a.pri-b.pri);
-  core.forEach(sl=>{
-    // tiny arm only if leftovers remain after main masses — skip for now, add at end
-    if(sl.id==='arm')return;
-    const p=takeFor(sl.cls);
+  const leftover=()=>pool.filter(p=>!used.has(p.i));
+  function bulk(p){
+    const t=p.traits||{};
+    let s=(t.size||1)*(0.85+(t.roundness||0.3));
+    if(p.cls==='round')s+=0.45;
+    if(p.cls==='lumpy')s+=0.2;
+    if(p.type===12)s-=0.9;
+    return s;
+  }
+  function takeBulk(cls){
+    const cand=pool.filter(p=>!used.has(p.i));
+    if(!cand.length)return null;
+    const prefer=cls?cand.filter(p=>p.cls===cls):cand;
+    const list=prefer.length?prefer:cand;
+    list.sort((a,b)=>bulk(b)-bulk(a));
+    const p=list[0];
+    used.add(p.i);
+    return p;
+  }
+  function put(id, p){
+    if(!p)return;
+    const sl=core.find(s=>s.id===id);
+    if(!sl)return;
+    const sz=(p.traits&&p.traits.size)||1;
+    placed.push({part:p, slot:Object.assign({},sl,{r:sl.r*(0.92+0.16*(sz-0.7))})});
+  }
+  // Biggest / roundest shape IS the torso, deformed into the pear (orb-style).
+  put('torso', takeBulk('round')||takeFor('round'));
+  put('head', takeBulk('round')||takeFor('round'));
+  // Thighs then shins — lumpy/chunky, aligned to the leg bones.
+  put('thighN', takeFor('lumpy'));
+  put('thighF', takeFor('lumpy'));
+  put('shinN', takeFor('lumpy'));
+  put('shinF', takeFor('lumpy'));
+  // Tail segments along the spine (already bone-aligned).
+  core.filter(s=>s.id.startsWith('tail')).sort((a,b)=>a.pri-b.pri).forEach(sl=>{
+    const p=takeFor('long');
     if(!p)return;
     const sz=(p.traits&&p.traits.size)||1;
-    placed.push({part:p, slot:Object.assign({},sl,{r:sl.r*(0.9+0.2*(sz-0.7))})});
+    placed.push({part:p, slot:Object.assign({},sl,{r:sl.r*(0.92+0.16*(sz-0.7))})});
   });
-  const leftover=()=>pool.filter(p=>!used.has(p.i));
-  // Merge at most one companion into torso and one into head (still a single mass, not a pile)
-  function mergeInto(id, dx, dy, scale){
-    const host=placed.find(d=>d.slot.id===id);
-    if(!host)return;
-    const rest=leftover().filter(p=>p.cls==='round'||p.cls==='lumpy'||p.cls==='decor');
-    if(!rest.length)return;
-    const p=takeBest(rest, {roundness:.6});
-    if(!p)return;
-    used.add(p.i);
-    const sl=host.slot;
-    placed.push({part:p, slot:slot(id+'m',p.cls,sl.bone,sl.x+dx,sl.y+dy,sl.rot,sl.sx,sl.sy, sl.r*scale, sl.z+1, 15)});
-  }
-  mergeInto('torso', 10, 18, 0.62);
-  mergeInto('head', -10, 8, 0.55);
-  // Remaining spiky (then anything else) become a clean BACK-SPIKE ROW, not a chest pile
-  const maxSp=Math.max(0, Math.min(6, Math.round(1+m.spike*4 + leftover().filter(p=>p.cls==='spiky').length*0.5)));
+  // Leftovers: back-spike row (pointing out from the spine) or an extra tail tip. Nothing piled on the torso.
+  const restSp=leftover().filter(p=>p.cls==='spiky');
+  const maxSp=Math.max(0, Math.min(5, restSp.length?Math.min(5, restSp.length): (m.spike>0.55?2:0)));
   for(let i=0;i<maxSp;i++){
     const rest=leftover();
     if(!rest.length)break;
     const spikes=rest.filter(p=>p.cls==='spiky');
-    const p=spikes.length?takeBest(spikes,{minSpike:.5,spikiness:.8}):takeFor('spiky');
+    const p=spikes.length?takeBest(spikes,{minSpike:.5,spikiness:.8}):null;
     if(!p)break;
     if(!used.has(p.i))used.add(p.i);
-    const t=maxSp<=1?0.5:i/(maxSp-1);
-    // along the back / spine of the torso, above the belly
-    const x=-28+t*52;
-    const y=-52-F*6;
-    placed.push({part:p, slot:slot('spike'+i,'spiky','torso',x,y,-1.05+t*0.15,0.72,1.4, 24+m.spike*8, 36, 16+i)});
+    const tt=maxSp<=1?0.5:i/(maxSp-1);
+    // along the back of the pear, pointing outward (perpendicular to the body axis)
+    const x=-30+tt*48;
+    const y=-50-F*6;
+    placed.push({part:p, slot:slot('spike'+i,'spiky','torso',x,y,-Math.PI/2+0.08, 0.7, 1.35, 22+m.spike*8, 36, 16+i)});
   }
-  // tiny arm from a leftover long, if any
+  // leftover longs → extra tail tip, aligned to the spine
+  const longs=leftover().filter(p=>p.cls==='long');
+  if(longs.length){
+    const p=takeFor('long');
+    const spine=sampleCurve(design.tail,6);
+    const tip=spineAt(spine, 0.92);
+    if(p) placed.push({part:p, slot:slot('tailTip','long','tail',tip.x,tip.y,tip.rot,1.8,0.55,22,11,18)});
+  }
+  // tiny arm only if something is still left
   const armSl=core.find(s=>s.id==='arm');
   if(armSl && leftover().length){
-    const p=takeFor('long');
+    const p=takeFor('long')||takeFor('decor');
     if(p) placed.push({part:p, slot:armSl});
   }
   return placed;
