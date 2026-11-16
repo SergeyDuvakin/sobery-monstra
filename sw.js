@@ -1,5 +1,5 @@
-// Собери монстра — cache-first offline shell. Bump CACHE when assets change.
-const CACHE = 'sobery-monstra-v5';
+// Собери монстра — network-first for pages (fresh updates), cache-first for icons. Bump CACHE when assets change.
+const CACHE = 'sobery-monstra-v6';
 const ASSETS = [
   './',
   './index.html',
@@ -32,6 +32,19 @@ self.addEventListener('fetch', event => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
+  const isPage = req.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('.html');
+  if (isPage) {
+    event.respondWith((async () => {
+      try {
+        const res = await fetch(req, { cache: 'no-store' });
+        if (res.ok) { const cache = await caches.open(CACHE); await cache.put('./index.html', res.clone()); }
+        return res;
+      } catch (err) {
+        return (await caches.match('./index.html')) || (await caches.match('./'));
+      }
+    })());
+    return;
+  }
   event.respondWith((async () => {
     const cached = await caches.match(req, { ignoreSearch: true });
     if (cached) return cached;
