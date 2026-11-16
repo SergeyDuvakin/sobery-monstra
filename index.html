@@ -928,10 +928,10 @@ function withBone(c,bones,id,t,reduced,fn){
 
 function trexTailSpine(m){
   const s=0.70+0.48*(m.elong-0.72);
-  const w=0.46*m.limb; // thin connective tissue; parts carry the mass
+  const w=0.55*m.limb;
   return [
-    {x:10,y:8,w:16*w},{x:-42*s,y:20,w:14*w},{x:-95*s,y:30*Math.min(1.15,s),w:11*w},
-    {x:-148*s,y:16*s,w:8*w},{x:-195*s,y:-8*s,w:5.5*w},{x:-238*s,y:-36*s,w:3*w},{x:-268*s,y:-58*s,w:1.2}
+    {x:12,y:8,w:22*w},{x:-48*s,y:22,w:20*w},{x:-100*s,y:32*Math.min(1.15,s),w:16*w},
+    {x:-155*s,y:16*s,w:11*w},{x:-200*s,y:-8*s,w:7*w},{x:-242*s,y:-36*s,w:3.5*w},{x:-272*s,y:-58*s,w:1.3}
   ];
 }
 
@@ -982,68 +982,74 @@ function orbDesign(m){
 }
 
 function octoSpine(i, spread, m){
-  // Controllable cartoon-octopus arm: go out and down, hook at the tip, never shoot upward.
-  const side=spread<0?-1:1;
-  const abs=Math.abs(spread);
+  // Unique soft S-curves / curls per arm. Some rise, some hang. Asymmetric. No knees.
   const E=m.elong, F=m.fat;
-  const reach=(125+abs*80+(i%2)*20)*(0.84+0.36*(E-0.72));
-  const drop=(55+(2.15-abs)*90+((i>>1)%2)*14)*(0.88+0.2*(E-0.72));
-  const thick0=(22+F*10)*0.85;
-  const p1x=side*reach*0.30, p1y=drop*0.18+10;
-  const p2x=side*reach*1.02, p2y=drop*(abs>1.15?0.55:0.72);
-  // outer arms hook downward; inner arms flare out then slightly in
-  const p3x=side*reach*(abs>1.15?0.72:1.08);
-  const p3y=drop*(abs>1.15?1.08:1.18);
-  const n=18, spine=[];
+  const L=0.86+0.28*Math.min(1.2, E-0.72);
+  const thick0=34+F*12;
+  const specs=[
+    {p1:[-52,-28], p2:[-128,-108], p3:[-96,-18]},   // 0 left wave, up then hook
+    {p1:[-78, 28], p2:[-156,  62], p3:[-124,148]},  // 1 left side S, out then down
+    {p1:[-36, 86], p2:[ -8, 176], p3:[-78, 248]},   // 2 left drape
+    {p1:[-12, 96], p2:[ 36, 178], p3:[-48, 268]},   // 3 left hang, long S
+    {p1:[ 28, 82], p2:[-18, 168], p3:[ 62, 246]},   // 4 right hang, different S
+    {p1:[ 58, 74], p2:[ 108,148], p3:[ 36, 228]},   // 5 right drape
+    {p1:[ 96,  8], p2:[ 172,  58], p3:[ 128,142]},  // 6 right side, not a mirror
+    {p1:[ 58,-44], p2:[ 148,-86], p3:[ 168,  8]}    // 7 right wave, wider hook
+  ];
+  const sp=specs[i%8];
+  const p1x=sp.p1[0]*L, p1y=sp.p1[1]*L;
+  const p2x=sp.p2[0]*L, p2y=sp.p2[1]*L;
+  const p3x=sp.p3[0]*L, p3y=sp.p3[1]*L;
+  const n=20, spine=[];
   for(let k=0;k<=n;k++){
     const t=k/n,u=1-t;
     let x=3*u*u*t*p1x + 3*u*t*t*p2x + t*t*t*p3x;
     let y=3*u*u*t*p1y + 3*u*t*t*p2y + t*t*t*p3y;
-    const dx=p3x, dy=Math.max(20,p3y), len=Math.hypot(dx,dy)||1;
-    const wave=Math.sin(t*Math.PI*2.05+i*0.8)*16*t;
-    x+=(-dy/len)*wave; y+=(dx/len)*wave*0.45;
-    if(y<-4)y=-4;
-    spine.push({x,y,w:thick0*(1-t*0.78)});
+    const dx=p3x, dy=p3y, len=Math.hypot(dx,dy)||1;
+    const wave=Math.sin(t*Math.PI*1.15+i*0.55)*10*t*(1-t)*2;
+    x+=(-dy/len)*wave; y+=(dx/len)*wave*0.35;
+    spine.push({x,y,w:thick0*(1-t*0.82)});
   }
   return spine;
 }
 
 function krakenDesign(m){
   const F=m.fat;
-  const R=80*F;
+  const R=100*F;
   const bones={
     root:{x:0,y:0,rot:0,amp:0,phase:0},
-    mantle:{parent:'root',x:0,y:-24,rot:0,amp:0.02,phase:0.5,pivot:true}
+    mantle:{parent:'root',x:0,y:-36,rot:0,amp:0.02,phase:0.5,pivot:true}
   };
+  // Irregular attaches around the sides and underside — not a regular radial fan.
   const attaches=[
-    {a:-1.95,x:-R*0.92,y:R*0.02},
-    {a:-1.40,x:-R*1.08,y:R*0.38},
-    {a:-0.85,x:-R*0.78,y:R*0.78},
-    {a:-0.32,x:-R*0.28,y:R*0.98},
-    {a: 0.32,x: R*0.28,y:R*0.98},
-    {a: 0.85,x: R*0.78,y:R*0.78},
-    {a: 1.40,x: R*1.08,y:R*0.38},
-    {a: 1.95,x: R*0.92,y:R*0.02}
+    {a:-2.1,x:-R*0.88,y:-R*0.08},
+    {a:-1.5,x:-R*1.05,y: R*0.22},
+    {a:-0.9,x:-R*0.72,y: R*0.72},
+    {a:-0.25,x:-R*0.22,y: R*0.98},
+    {a: 0.38,x: R*0.32,y: R*0.92},
+    {a: 0.95,x: R*0.86,y: R*0.62},
+    {a: 1.55,x: R*1.08,y: R*0.12},
+    {a: 2.05,x: R*0.70,y:-R*0.16}
   ];
   const tent=[];
   attaches.forEach((at,i)=>{
     const id='tent'+i;
-    bones[id]={parent:'mantle',x:at.x,y:at.y,rot:0,amp:0.045,phase:0.6+i*0.7,pivot:true};
+    bones[id]={parent:'mantle',x:at.x,y:at.y,rot:0,amp:0.04,phase:0.5+i*0.73,pivot:true};
     tent.push({id,a:at.a,i,spine:octoSpine(i,at.a,m)});
   });
-  let minX=-R,maxX=R,minY=-R*1.25,maxY=R;
+  let minX=-R,maxX=R,minY=-R*1.2,maxY=R;
   tent.forEach(te=>{
     const bx=bones[te.id].x, by=bones[te.id].y;
     te.spine.forEach(p=>{
-      minX=Math.min(minX,bx+p.x-24);
-      maxX=Math.max(maxX,bx+p.x+24);
-      minY=Math.min(minY,by+p.y-24);
-      maxY=Math.max(maxY,by+p.y+24);
+      minX=Math.min(minX,bx+p.x-28);
+      maxX=Math.max(maxX,bx+p.x+28);
+      minY=Math.min(minY,by+p.y-28);
+      maxY=Math.max(maxY,by+p.y+28);
     });
   });
-  const shadow={x:0,y:maxY+4,rx:Math.max(150,(maxX-minX)*0.30),ry:20};
-  const bbox={minX:minX-8,minY:minY-16,maxX:maxX+8,maxY:maxY+12};
-  return {bones,shadow,bbox,tilt:0.02,tent,headR:R,morph:m};
+  const shadow={x:8,y:maxY+2,rx:Math.max(160,(maxX-minX)*0.28),ry:20};
+  const bbox={minX:minX-8,minY:minY-12,maxX:maxX+8,maxY:maxY+10};
+  return {bones,shadow,bbox,tilt:0.03,tent,headR:R,morph:m};
 }
 
 function drawBodyPart(c,o,r){
@@ -1076,24 +1082,24 @@ function drawTrexTissue(c, pal, bones, t, reduced, design){
     ribbonPath(c,sampleCurve(design.tail,6));
     paint(c,pal.dark,ink,lw);
   });
-  const legW=14*th;
+  const legW=30*th;
   withBone(c,bones,'legFar',t,reduced,c=>{
-    c.beginPath();capsulePath(c,0,0,-24,62,legW+4,legW+2);paint(c,pal.dark,ink,lw);
-    c.beginPath();capsulePath(c,-24,62,-2,128,legW,10*th);paint(c,pal.dark,ink,lw);
-    c.beginPath();c.ellipse(14,140,22*th,10,0.05,0,Math.PI*2);paint(c,pal.dark,ink,lw);
+    c.beginPath();capsulePath(c,2,0,-6,70,legW+4,legW-2);paint(c,pal.dark,ink,lw);
+    c.beginPath();capsulePath(c,-6,70,10,140,legW-2,18);paint(c,pal.dark,ink,lw);
+    c.beginPath();c.ellipse(26,150,32,13,0.06,0,Math.PI*2);paint(c,pal.dark,ink,lw);
   });
   withBone(c,bones,'torso',t,reduced,c=>{
     c.beginPath();
-    const sx=48*F, sy=56*F;
+    const sx=50*F, sy=58*F;
     c.ellipse(8,16,sx,sy,-0.32,0,Math.PI*2);
     paint(c,fill,ink,lw);
   });
   withBone(c,bones,'legNear',t,reduced,c=>{
-    c.beginPath();capsulePath(c,0,0,-10,66,legW+6,legW+3);paint(c,fill,ink,lw);
-    c.beginPath();capsulePath(c,-10,66,12,132,legW+2,11*th);paint(c,fill,ink,lw);
-    c.beginPath();c.ellipse(30,144,26*th,11,0.08,0,Math.PI*2);paint(c,fill,ink,lw);
-    [[42,142,10],[50,148,9],[34,152,8]].forEach(p=>{
-      c.beginPath();c.ellipse(p[0],p[1],p[2]*th,5,0.15,0,Math.PI*2);paint(c,fill,ink,lw*.8);
+    c.beginPath();capsulePath(c,4,0,2,74,legW+8,legW);paint(c,fill,ink,lw);
+    c.beginPath();capsulePath(c,2,74,16,142,legW,20);paint(c,fill,ink,lw);
+    c.beginPath();c.ellipse(36,152,36,15,0.08,0,Math.PI*2);paint(c,fill,ink,lw);
+    [[50,150,12],[60,156,11],[42,160,10]].forEach(p=>{
+      c.beginPath();c.ellipse(p[0],p[1],p[2],6,0.15,0,Math.PI*2);paint(c,fill,ink,lw*.8);
     });
   });
   // tiny arms — connective only, stay tiny
@@ -1207,30 +1213,30 @@ function drawOrbTissue(c, pal, bones, t, reduced, design){
 function drawKrakenTissue(c, pal, bones, t, reduced, design){
   const ink=pal.ink, lw=5.5, m=design.morph, R=design.headR;
   const fill=pal.tissue;
-  // tentacles first (behind head) — thin curling ribbons
+  // Soft tapered ribbons — a core only; parts carry the arm mass when present.
   design.tent.forEach(te=>{
     withBone(c,bones,te.id,t,reduced,c=>{
-      c.globalAlpha=0.7;
+      c.globalAlpha=0.5;
       c.beginPath();
-      ribbonPath(c,sampleCurve(te.spine,4));
+      ribbonPath(c,sampleCurve(te.spine,6));
       paint(c, te.i%2?pal.dark:fill, ink, lw);
       c.globalAlpha=1;
     });
   });
-  // bulbous octopus head / mantle
+  // Bulbous mantle, slightly smaller than the head part so the caught shape is the head
   withBone(c,bones,'mantle',t,reduced,c=>{
-    c.globalAlpha=0.58;
+    c.globalAlpha=0.42;
     c.beginPath();
-    c.moveTo(-R*0.95,R*0.35);
-    c.bezierCurveTo(-R*1.15,R*0.05,-R*1.05,-R*0.45,-R*0.6,-R*0.85);
-    c.bezierCurveTo(-R*0.2,-R*1.15,R*0.2,-R*1.15,R*0.6,-R*0.85);
-    c.bezierCurveTo(R*1.05,-R*0.45,R*1.15,R*0.05,R*0.95,R*0.35);
-    c.bezierCurveTo(R*0.5,R*0.7,-R*0.5,R*0.7,-R*0.95,R*0.35);
+    c.moveTo(-R*0.78,R*0.28);
+    c.bezierCurveTo(-R*1.02,R*0.02,-R*0.95,-R*0.42,-R*0.55,-R*0.78);
+    c.bezierCurveTo(-R*0.18,-R*1.08,R*0.18,-R*1.08,R*0.55,-R*0.78);
+    c.bezierCurveTo(R*0.95,-R*0.42,R*1.02,R*0.02,R*0.78,R*0.28);
+    c.bezierCurveTo(R*0.42,R*0.62,-R*0.42,R*0.62,-R*0.78,R*0.28);
     c.closePath();
     paint(c,fill,ink,lw);
     c.beginPath();
-    c.ellipse(0,-R*0.15,R*0.5,R*0.38,0,0,Math.PI*2);
-    c.fillStyle=pal.light;c.globalAlpha=0.3;c.fill();
+    c.ellipse(0,-R*0.12,R*0.42,R*0.32,0,0,Math.PI*2);
+    c.fillStyle=pal.light;c.globalAlpha=0.28;c.fill();
     c.globalAlpha=1;
   });
 }
@@ -1242,36 +1248,19 @@ function slot(id,cls,bone,x,y,rot,sx,sy,r,z,pri){
 function trexSlots(design){
   const m=design.morph, F=m.fat, E=m.elong;
   const slots=[];
-  // priority: low number first. Big anatomical masses first.
-  slots.push(slot('head','round','head',6,-26,-0.15,1.28,1.1,58*F,40,1));
-  slots.push(slot('torso','round','torso',6,16,-0.3,1.25,1.15,78*F,30,2));
-  slots.push(slot('jaw','lumpy','jaw',40,12,0.1,1.55,0.72,36*F,38,3));
-  slots.push(slot('thighN','lumpy','legNear',-4,28,1.15,1.2,0.75,40*m.limb,28,4));
-  slots.push(slot('shinN','lumpy','legNear',2,96,1.35,1.15,0.65,32*m.limb,28,5));
-  slots.push(slot('footN','spiky','legNear',30,144,0.1,1.35,0.6,24,29,8));
-  slots.push(slot('thighF','lumpy','legFar',-10,28,1.3,1.15,0.7,36*m.limb,8,6));
-  slots.push(slot('shinF','lumpy','legFar',-14,96,1.4,1.1,0.6,28*m.limb,8,7));
-  // tail chain — count grows with elongation / long parts
-  const tailN=Math.max(2, Math.min(5, 2+Math.round((E-0.8)*2.2)+ (m.counts.long>=3?1:0)));
+  // Few big anatomical masses only — extras are assigned as merges / a back-spike row.
+  slots.push(slot('head','round','head',6,-26,-0.12,1.32,1.12,64*F,40,1));
+  slots.push(slot('torso','round','torso',8,18,-0.3,1.18,1.12,84*F,30,2));
+  slots.push(slot('legN','lumpy','legNear',6,78,1.22,0.88,1.9,54*m.limb,28,3));
+  slots.push(slot('legF','lumpy','legFar',-4,74,1.28,0.84,1.85,50*m.limb,8,4));
+  const tailN=Math.max(2, Math.min(4, 2+Math.round((E-0.85)*1.6)+(m.counts.long>=3?1:0)));
   const spine=sampleCurve(design.tail,6);
   for(let i=0;i<tailN;i++){
-    const t=(i+0.65)/(tailN+0.3);
+    const t=(i+0.55)/(tailN+0.15);
     const p=spineAt(spine,t);
-    slots.push(slot('tail'+i,'long','tail',p.x,p.y,p.rot,2.15-t*0.35,0.62,36-i*3,6,4+i));
+    slots.push(slot('tail'+i,'long','tail',p.x,p.y,p.rot,2.35-t*0.4,0.78,46-i*4,6,5+i));
   }
-  // tiny arm overlay, stays small
-  slots.push(slot('arm','long','arm',16,8,0.5,1.4,0.4,14,35,12));
-  // back / nose / extra spikes — more when spiky
-  const spikes=Math.max(1, Math.min(7, Math.round(1+m.spike*5 + m.counts.spiky*0.35)));
-  for(let i=0;i<spikes;i++){
-    const along=0.15+i*(0.7/Math.max(1,spikes-1));
-    const p=spineAt(spine, along*0.45);
-    // along upper torso / back
-    slots.push(slot('spike'+i,'spiky','torso',-8+i*16,-36-F*8,-0.9-i*0.08,0.7,1.35,20+m.spike*8,36,10+i));
-  }
-  slots.push(slot('teeth','spiky','head',70,8,0.05,1.2,0.5,16,45,11));
-  slots.push(slot('cheek','round','head',-6,-8,0,1,0.85,22,41,13));
-  slots.push(slot('belly','round','torso',10,36,-0.2,1.15,0.9,28*F,31,14));
+  slots.push(slot('arm','long','arm',16,8,0.5,1.35,0.42,14,35,20));
   return slots;
 }
 
@@ -1301,34 +1290,31 @@ function orbSlots(design){
 function krakenSlots(design){
   const m=design.morph, R=design.headR;
   const slots=[];
-  slots.push(slot('head','round','mantle',0,-6,0,1.08,1.02,R*0.98,40,1));
-  slots.push(slot('crown','spiky','mantle',0,-R*0.88,0,0.8,1.35,30+m.spike*14,50,8));
-  slots.push(slot('cheekL','round','mantle',-R*0.55,R*0.10,0,1,0.9,R*0.32,42,9));
-  slots.push(slot('cheekR','round','mantle', R*0.55,R*0.10,0,1,0.9,R*0.32,42,10));
-  // extra head spikes
-  const extra=Math.round(m.spike*4);
-  for(let i=0;i<extra;i++){
-    const a=-Math.PI*0.9 + i*(Math.PI*0.6/Math.max(1,extra-1||1)) - 0.3;
-    // around top of head
-    const ang=-Math.PI/2 + (i-(extra-1)/2)*0.4;
-    slots.push(slot('hspike'+i,'spiky','mantle',Math.cos(ang)*R*0.8,Math.sin(ang)*R*0.8,ang+Math.PI/2,0.7,1.25,18+m.spike*6,48,12+i));
-  }
-  // tentacle segments — two per arm, long parts first mid then tip
+  slots.push(slot('head','round','mantle',0,-4,0,1.02,1.0,R*1.0,40,1));
+  slots.push(slot('crown','spiky','mantle',0,-R*0.9,0,0.8,1.4,32+m.spike*12,50,30));
+  // 2–3 big stretched segments per arm, thick enough to BE the arm
   design.tent.forEach((te,i)=>{
-    const mid=spineAt(te.spine,0.38);
-    const tip=spineAt(te.spine,0.78);
-    slots.push(slot('tmid'+i,'long',te.id,mid.x,mid.y,mid.rot,2.2,0.58,32,10+((i===0||i===7||i===1||i===6)?20:0), 2+i*0.01));
-    slots.push(slot('ttip'+i,'long',te.id,tip.x,tip.y,tip.rot,1.85,0.5,24,11+((i===0||i===7)?20:0), 20+i));
+    const ts=[0.22,0.52,0.82];
+    ts.forEach((tt,k)=>{
+      const p=spineAt(te.spine,tt);
+      const isFront=(i===3||i===4||i===0||i===7);
+      const r=(k===0?40:k===1?32:24);
+      const sx=(k===0?2.15:k===1?2.0:1.7);
+      const sy=(k===0?0.85:k===1?0.72:0.6);
+      const pri=2+k*8+i*0.01; // fill a base on every arm before mids, then tips
+      slots.push(slot('t'+i+'s'+k,'long',te.id,p.x,p.y,p.rot,sx,sy,r, 10+(isFront?24:0)+k, pri));
+    });
   });
   return slots;
 }
 
 function assignParts(scheme, parts, design){
-  const slots=scheme==='trex'?trexSlots(design):scheme==='orb'?orbSlots(design):krakenSlots(design);
-  const pool=(parts||[]).map((p,i)=>({...p,i,cls:classifyPart(p)}));
-  slots.sort((a,b)=>a.pri-b.pri);
-  const placed=[];
-  const used=new Set();
+  if(scheme==='orb') return assignBySlots(orbSlots(design), parts);
+  if(scheme==='trex') return assignTrex(parts, design);
+  return assignKraken(parts, design);
+}
+
+function makeTaker(pool, used){
   const fallback={
     round:['lumpy','decor','long','spiky'],
     lumpy:['round','decor','spiky','long'],
@@ -1336,7 +1322,7 @@ function assignParts(scheme, parts, design){
     spiky:['decor','lumpy','long','round'],
     decor:['round','lumpy','spiky','long']
   };
-  function takeFor(cls){
+  return function takeFor(cls){
     const want={
       round:{minRound:.55,roundness:.8},
       lumpy:{roundness:.4,spikiness:.3},
@@ -1347,7 +1333,6 @@ function assignParts(scheme, parts, design){
     const prefer=pool.filter(p=>!used.has(p.i) && p.cls===cls);
     if(prefer.length){
       const p=takeBest(prefer,want);
-      // takeBest splices from prefer, also remove from pool via used
       if(p){used.add(p.i);return p;}
     }
     const chain=fallback[cls]||['decor'];
@@ -1364,15 +1349,125 @@ function assignParts(scheme, parts, design){
       if(p){used.add(p.i);return p;}
     }
     return null;
-  }
+  };
+}
+
+function assignBySlots(slots, parts){
+  const pool=(parts||[]).map((p,i)=>({...p,i,cls:classifyPart(p)}));
+  slots.sort((a,b)=>a.pri-b.pri);
+  const placed=[];
+  const used=new Set();
+  const takeFor=makeTaker(pool, used);
   slots.forEach(sl=>{
-    // don't fill low-priority leftover-ish slots until we have parts
     const p=takeFor(sl.cls);
     if(!p)return;
     const sz=(p.traits&&p.traits.size)||1;
-    const slot2=Object.assign({},sl,{r:sl.r* (0.88+0.24*(sz-0.7))});
+    const slot2=Object.assign({},sl,{r:sl.r*(0.88+0.24*(sz-0.7))});
     placed.push({part:p,slot:slot2});
   });
+  return placed;
+}
+
+function assignTrex(parts, design){
+  const m=design.morph, F=m.fat;
+  const core=trexSlots(design);
+  const pool=(parts||[]).map((p,i)=>({...p,i,cls:classifyPart(p)}));
+  const used=new Set();
+  const takeFor=makeTaker(pool, used);
+  const placed=[];
+  // Fill the few big core slots first (head, torso, 2 legs, 2–4 tail, tiny arm last)
+  core.sort((a,b)=>a.pri-b.pri);
+  core.forEach(sl=>{
+    // tiny arm only if leftovers remain after main masses — skip for now, add at end
+    if(sl.id==='arm')return;
+    const p=takeFor(sl.cls);
+    if(!p)return;
+    const sz=(p.traits&&p.traits.size)||1;
+    placed.push({part:p, slot:Object.assign({},sl,{r:sl.r*(0.9+0.2*(sz-0.7))})});
+  });
+  const leftover=()=>pool.filter(p=>!used.has(p.i));
+  // Merge at most one companion into torso and one into head (still a single mass, not a pile)
+  function mergeInto(id, dx, dy, scale){
+    const host=placed.find(d=>d.slot.id===id);
+    if(!host)return;
+    const rest=leftover().filter(p=>p.cls==='round'||p.cls==='lumpy'||p.cls==='decor');
+    if(!rest.length)return;
+    const p=takeBest(rest, {roundness:.6});
+    if(!p)return;
+    used.add(p.i);
+    const sl=host.slot;
+    placed.push({part:p, slot:slot(id+'m',p.cls,sl.bone,sl.x+dx,sl.y+dy,sl.rot,sl.sx,sl.sy, sl.r*scale, sl.z+1, 15)});
+  }
+  mergeInto('torso', 10, 18, 0.62);
+  mergeInto('head', -10, 8, 0.55);
+  // Remaining spiky (then anything else) become a clean BACK-SPIKE ROW, not a chest pile
+  const maxSp=Math.max(0, Math.min(6, Math.round(1+m.spike*4 + leftover().filter(p=>p.cls==='spiky').length*0.5)));
+  for(let i=0;i<maxSp;i++){
+    const rest=leftover();
+    if(!rest.length)break;
+    const spikes=rest.filter(p=>p.cls==='spiky');
+    const p=spikes.length?takeBest(spikes,{minSpike:.5,spikiness:.8}):takeFor('spiky');
+    if(!p)break;
+    if(!used.has(p.i))used.add(p.i);
+    const t=maxSp<=1?0.5:i/(maxSp-1);
+    // along the back / spine of the torso, above the belly
+    const x=-28+t*52;
+    const y=-52-F*6;
+    placed.push({part:p, slot:slot('spike'+i,'spiky','torso',x,y,-1.05+t*0.15,0.72,1.4, 24+m.spike*8, 36, 16+i)});
+  }
+  // tiny arm from a leftover long, if any
+  const armSl=core.find(s=>s.id==='arm');
+  if(armSl && leftover().length){
+    const p=takeFor('long');
+    if(p) placed.push({part:p, slot:armSl});
+  }
+  return placed;
+}
+
+function assignKraken(parts, design){
+  const m=design.morph, R=design.headR;
+  const pool=(parts||[]).map((p,i)=>({...p,i,cls:classifyPart(p)}));
+  const used=new Set();
+  const takeFor=makeTaker(pool, used);
+  const placed=[];
+  const leftover=()=>pool.filter(p=>!used.has(p.i));
+  // Head IS the largest / roundest caught shape, orb-style
+  const headP=takeFor('round');
+  if(headP){
+    placed.push({part:headP, slot:slot('head','round','mantle',0,-4,0,1.02,1.0,R*1.0,40,1)});
+  }
+  // Distribute remaining parts as thick arm segments (base → mid → tip across arms)
+  const armOrder=[3,4,2,5,1,6,0,7]; // hanging first, then sides, waves last
+  const ts=[0.22,0.52,0.82];
+  const sizes=[
+    {sx:2.2, sy:0.88, r:42},
+    {sx:2.05,sy:0.74, r:34},
+    {sx:1.75,sy:0.62, r:26}
+  ];
+  for(let k=0;k<3;k++){
+    for(const i of armOrder){
+      if(!leftover().length)break;
+      const te=design.tent[i];
+      if(!te)continue;
+      const pnt=spineAt(te.spine, ts[k]);
+      // prefer long for arms; anything leftover still stretches into a segment
+      const longs=leftover().filter(p=>p.cls==='long');
+      const p=longs.length?takeBest(longs,{minElong:1.4,elongation:1.8}):takeFor('long');
+      if(!p)continue;
+      if(!used.has(p.i))used.add(p.i);
+      const sz=sizes[k];
+      const isFront=(i===3||i===4||i===2||i===5);
+      placed.push({part:p, slot:slot('t'+i+'s'+k,'long',te.id,pnt.x,pnt.y,pnt.rot,sz.sx,sz.sy,sz.r, 10+(isFront?24:0)+k, 2)});
+    }
+  }
+  // A few large crown spikes only — no sticker scatter on the head
+  const maxCrown=Math.min(3, leftover().filter(p=>p.cls==='spiky').length);
+  for(let i=0;i<maxCrown;i++){
+    const p=takeFor('spiky');
+    if(!p)break;
+    const ang=-Math.PI/2+(i-(maxCrown-1)/2)*0.45;
+    placed.push({part:p, slot:slot('crown'+i,'spiky','mantle',Math.cos(ang)*R*0.82,Math.sin(ang)*R*0.82,ang+Math.PI/2,0.75,1.35, 28+m.spike*10, 50, 8)});
+  }
   return placed;
 }
 
